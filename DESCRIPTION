@@ -3,7 +3,19 @@ Type: Package
 Title: What the package does (short line)
 Version: 1.0
 Date: 2015-03-24
-Author: Who wrote it
+Author:
+    Juan M. Banda [aut, cre],
+    Marc A. Suchard [aut],
+    Martijn J. Schuemie [aut]
 Maintainer: Who to complain to <yourfault@somewhere.net>
 Description: More about what it does (maybe more than one line)
-License: What license is it under?
+License: Apache License 2.0
+Depends:
+    R (>= 3.1.0)
+Imports:
+    DatabaseConnector,
+    SqlRender
+Suggests:
+    testthat,
+    ggplot2
+
