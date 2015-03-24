@@ -12,4 +12,9 @@ test(a = 42)
 \description{
 Silly function
 }
+\examples{
+test()
+test(123)
+test(a = 666)
+}
 

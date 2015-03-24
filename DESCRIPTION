@@ -1,7 +1,7 @@
 Package: Aphrodite
 Type: Package
 Title: What the package does (short line)
-Version: 1.0
+Version: 0.1
 Date: 2015-03-24
 Author:
     Juan M. Banda [aut, cre],
@@ -9,7 +9,7 @@ Author:
     Martijn J. Schuemie [aut]
 Maintainer: Who to complain to <yourfault@somewhere.net>
 Description: More about what it does (maybe more than one line)
-License: Apache License 2.0
+License: Apache License 2.0 | file LICENSE
 Depends:
     R (>= 3.1.0)
 Imports:
