@@ -1,0 +1,2 @@
+library(testthat)
+check("Aphrodite")
