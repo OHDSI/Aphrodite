@@ -1,0 +1,99 @@
+Results for LASSO Model for-T2DM using 25 Cases and 25 Controls. 
+
+Area under the curve: 0.6944
+
+0.4913937 0.09539187
+Model Summary 
+ 
+            Length  Class      Mode     
+a0               94 -none-     numeric  
+beta        2029648 dgCMatrix  S4       
+df               94 -none-     numeric  
+dim               2 -none-     numeric  
+lambda           94 -none-     numeric  
+dev.ratio        94 -none-     numeric  
+nulldev           1 -none-     numeric  
+npasses           1 -none-     numeric  
+jerr              1 -none-     numeric  
+offset            1 -none-     logical  
+call              5 -none-     call     
+nobs              1 -none-     numeric  
+lambdaOpt         1 -none-     numeric  
+xNames        21592 -none-     character
+problemType       1 -none-     character
+tuneValue         2 data.frame list     
+obsLevels         1 -none-     logical  
+
+Model Details 
+ 
+glmnet 
+
+   38 samples
+21592 predictors
+
+No pre-processing
+Resampling: Cross-Validated (5 fold) 
+
+Summary of sample sizes: 30, 30, 31, 30, 31 
+
+Resampling results across tuning parameters:
+
+  alpha  lambda  RMSE       Rsquared   RMSE SD      Rsquared SD
+  0.10   0.1000  1.8851727  0.3390036  2.706871969  0.1447414  
+  0.10   0.4625  1.3121614  0.3388117  1.786020566  0.1510465  
+  0.10   0.8250  0.9139588  0.3270975  1.089094023  0.1379157  
+  0.10   1.1875  0.7216023  0.3628179  0.650244802  0.2036784  
+  0.10   1.5500  0.5489151  0.3718629  0.220179274  0.2254768  
+  0.10   1.9125  0.4923756  0.3869575  0.057537103  0.2596887  
+  0.10   2.2750  0.4848499  0.3172955  0.005189082  0.2046081  
+  0.10   2.6375  0.4934289  0.2372049  0.012751567  0.1336512  
+  0.10   3.0000  0.5002191  0.1250000  0.001452536         NA  
+  0.55   0.1000  1.2176562  0.3014233  1.765518011  0.1925023  
+  0.55   0.4625  0.4920276  0.2028060  0.008343191  0.1177663  
+  0.55   0.8250  0.5010231        NaN  0.001400938         NA  
+  0.55   1.1875  0.5010231        NaN  0.001400938         NA  
+  0.55   1.5500  0.5010231        NaN  0.001400938         NA  
+  0.55   1.9125  0.5010231        NaN  0.001400938         NA  
+  0.55   2.2750  0.5010231        NaN  0.001400938         NA  
+  0.55   2.6375  0.5010231        NaN  0.001400938         NA  
+  0.55   3.0000  0.5010231        NaN  0.001400938         NA  
+  1.00   0.1000  0.9366494  0.2678687  1.138199303  0.2025209  
+  1.00   0.4625  0.5010231        NaN  0.001400938         NA  
+  1.00   0.8250  0.5010231        NaN  0.001400938         NA  
+  1.00   1.1875  0.5010231        NaN  0.001400938         NA  
+  1.00   1.5500  0.5010231        NaN  0.001400938         NA  
+  1.00   1.9125  0.5010231        NaN  0.001400938         NA  
+  1.00   2.2750  0.5010231        NaN  0.001400938         NA  
+  1.00   2.6375  0.5010231        NaN  0.001400938         NA  
+  1.00   3.0000  0.5010231        NaN  0.001400938         NA  
+
+RMSE was used to select the optimal model using  the smallest value.
+The final values used for the model were alpha = 0.1 and lambda = 2.275. 
+
+glmnet variable importance
+
+  only 20 most important variables shown (out of 21592)
+
+              Overall
+obs:432867   0.004433
+obs:4265966  0.004429
+obs:40351278 0.004428
+obs:40321208 0.004426
+obs:21000707 0.004426
+obs:36468282 0.004425
+obs:4208328  0.003020
+obs:4126332  0.002344
+obs:37587873 0.001481
+obs:4319024  0.001480
+obs:4174669  0.001479
+obs:19023412 0.000000
+obs:45701906 0.000000
+obs:45208311 0.000000
+obs:36311980 0.000000
+obs:4200751  0.000000
+obs:45674326 0.000000
+obs:4330885  0.000000
+obs:45137915 0.000000
+obs:45464901 0.000000
+
+Generated on Mon Mar 23 2015 23:56:15
