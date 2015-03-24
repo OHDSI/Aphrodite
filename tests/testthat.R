@@ -1,2 +1,2 @@
 library(testthat)
-check("Aphrodite")
+test_check("Aphrodite")
