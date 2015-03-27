@@ -3,19 +3,20 @@ Type: Package
 Title: What the package does (short line)
 Version: 0.1
 Date: 2015-03-24
-Author:
+Author: 
     Juan M. Banda [aut, cre],
     Marc A. Suchard [aut],
     Martijn J. Schuemie [aut]
 Maintainer: Who to complain to <yourfault@somewhere.net>
 Description: More about what it does (maybe more than one line)
 License: Apache License 2.0 | file LICENSE
-Depends:
+Depends: 
     R (>= 3.1.0)
-Imports:
+Imports: 
     DatabaseConnector,
     SqlRender
-Suggests:
+Suggests: 
     testthat,
-    ggplot2
-
+    ggplot2,
+    knitr
+VignetteBuilder: knitr
