@@ -39,7 +39,7 @@ You need to udpate the /R/settings.R file with your CDM connection information a
 Full Example
 ===================
 
-This fild is also found under /samples/complete_example.R
+This file is also found under /samples/complete_example.R
 
 ```r
 
