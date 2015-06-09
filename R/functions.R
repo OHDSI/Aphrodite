@@ -42,6 +42,7 @@
 ## dataframe with query results                                                 ##
 ##                                                                              ##
 ##################################################################################
+#' @export
 executeSQL <- function (connection, schema, query, targetDBMS) {
 
     renderedSql <- renderSql(query, cdmSchema=schema)$sql
@@ -66,7 +67,7 @@ executeSQL <- function (connection, schema, query, targetDBMS) {
 ## status of keyword list (built or not found)                                  ##
 ##                                                                              ##
 ##################################################################################
-
+#' @export
 buildKeywordList <- function (connection, aphroditeConceptName, schema) {
 
     concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE lower(concept_name) =lower('",aphroditeConceptName,"') AND standard_concept = 'S' AND invalid_reason IS NULL AND domain_id = 'Condition';",sep = ""),dbms)
@@ -116,7 +117,7 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema) {
 ## Returns:                                                                     ##
 ##                                                                              ##
 ##################################################################################
-
+#' @export
 getdPatientCohort <- function (connection, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize) {
 
     #Get empty list
@@ -152,7 +153,7 @@ getdPatientCohort <- function (connection, includeConceptlist, excludeConceptlis
 ## Returns:                                                                     ##
 ##                                                                              ##
 ##################################################################################
-
+#' @export
 getPatientDataCases <- function (connection, patient_ids, keywords, ignores, flags, schema) {
     patientFeatures_drugexposures_df<- list()
     patientFeatures_observations_df<- list()
@@ -274,7 +275,7 @@ getPatientDataCases <- function (connection, patient_ids, keywords, ignores, fla
 ## Returns:                                                                     ##
 ##                                                                              ##
 ##################################################################################
-
+#' @export
 getPatientData <- function (connection, patient_ids, flags, schema) {
     patientFeatures_drugexposures_df<- list()
     patientFeatures_observations_df<- list()
@@ -379,7 +380,7 @@ return (patientData)
 ## Returns:                                                                     ##
 ##                                                                              ##
 ##################################################################################
-
+#' @export
 buildFeatureVector <- function (flags, casesS, controlsS) {
 
 if (missing(controlsS)) {
@@ -504,7 +505,7 @@ return (featureVectors)
 ## Returns:                                                                     ##
 ##                                                                              ##
 ##################################################################################
-
+#' @export
 buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS) {
     feature_vectors <- list()
 
@@ -565,44 +566,6 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         ###### Model Ouputs to file #############
         sink(paste('LASSO output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
         cat(paste('Results for LASSO Model for-',outcomeNameS,' using ',as.character(nCases),' Cases and ',as.character(nControls),' Controls. \n\n',sep=''))
-        cat("\nModel Summary \n \n")
-        # find out variable importance
-        print(summary(objModel))
-        # find out model details
-        cat("\nModel Details \n \n")
-        print(objModel)
-        cat("\n")
-        print(varImp(objModel, scale=F, top=20))
-        cat("\nGenerated on ")
-        cat(format(Sys.time(), "%a %b %d %Y %X"))
-        sink()
-    }
-
-    if (flags$model[1]=='RF') {
-        ###########################################
-        ### Random Forest #########################
-        ###########################################
-        set.seed(765)
-        splitIndex <- createDataPartition(ppv_set[,outcomeNameS], p = .75, list = FALSE, times = 1)
-        trainDF <- ppv_set[ splitIndex,]
-        testDF  <- ppv_set[-splitIndex,]
-
-        # create caret trainControl object to control the number of cross-validations performed
-        objControl <- trainControl(method='cv', number=5, returnResamp='none')
-        objModel <- train(trainDF[,predictorsNames], trainDF[,outcomeNameS], method='rf',  metric = "RMSE", trControl=objControl, importance = TRUE)
-
-        # get predictions on your testing data
-        predictions <- predict(object=objModel, testDF[,predictorsNames])
-        auc <- roc(testDF[,outcomeNameS], predictions)
-
-        ###### Model Ouputs to file #############
-        sink(paste('RF output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
-        cat(paste('Results for RF Model for-',outcomeNameS,' using ',as.character(nCases),' Cases and ',as.character(nControls),' Controls. \n\n',sep=''))
-        print(auc$auc)
-        cat("\n")
-        confusionMatrix(predictions, testDF[,outcomeNameS])
-        cat("\n")
-        cat(postResample(pred=predictions, obs=testDF[,outcomeNameS]))
         cat("\nModel Summary \n \n")
         # find out variable importance
         print(summary(objModel))

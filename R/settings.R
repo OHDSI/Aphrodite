@@ -65,7 +65,7 @@ flag$labs[1]=0            #Use labs as features  (1 yes, 0 no)
 saveALLresults=1   # There is a cleaning function to remove all intermediate results
 
 ### Type of model to build  ###
-flag$model[1] <-'RF' # Available types: LASSO or RF
+flag$model[1] <-'LASSO' # Available types: LASSO - mode will be added in the future
 ### How to use features ###
 flag$features_mode[1] <- 'frequency'   #Can be Boolean or frequency - boolean only requires presence and frequency keeps the counts
 ### Do we want to plot the AUOC and Top Variables plots ###
