@@ -1,6 +1,10 @@
 # Aphrodite
 
-Automated PHenotype Routine for Observational Definition, Identification, Training and Evaluation
+Automated PHenotype Routine for Observational Definition, Identification, Training and Evaluation (APHRODITE) - Previously known as XPRESS. 
+
+Typically, patient groups corresponding to a phenotype are selected by rule-based definitions, whose development is time-consuming. Machine learning approaches, which are an alternative approach for electronic phenotyping, are hampered by the paucity of manually labeled gold standard corpora for training. We demonstrate the feasibility of using noisy class labels to create “silver standard” training corpora to construct phenotype models. Our approach uses such silver standard corpora, in conjunction with expert knowledge codified in existing ontologies and a comprehensive representation of the patient clinical record, to learn phenotype models.
+
+Reference (for now): http://knowledge.amia.org/amia-59309-cri2015-1.2002246/t-005-1.2003490/a-076-1.2003547/a-076-1.2003548/ap-076-1.2003549
 
 Requirementes
 ===================
@@ -13,34 +17,47 @@ Requirementes
 	- SqlRender
 	- DatabaseConnector
 
+Installation
+===================
+
+```
+install_github("ohdsi/Aphrodite")
+```
+
 Before you start
 ===================
 
-You need to udpate the settings.R file with your CDM connection information and Phenotyping settings.
+You need to udpate the /R/settings.R file with your CDM connection information and Phenotyping settings.
 
 Full Example
 ===================
 
+This fild is also found under /samples/complete_example.R
+
 ```r
 
-folder = "/home/jmbanda/OHDSI/Aphrodite/R/" # Folder containing the R files and outputs, use forward slashes
+folder = "/home/jmbanda/OHDSI/Aphrodite/R/" # Folder containing outputs, use forward slashes
 setwd(folder)
-
-source("settings.R")
 
 ###########################################################
 # All parameters connection info and extras are in        #
 # the file settings.R, please make any appropiate changes #
 ###########################################################
 
+source("R/settings.R")  #This should be the modified settings.R file
+
 #Initiate connection
 connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
 conn <- connect(connectionDetails)
 
-# STEP 1 - Generate Keywords
+# STEP 1 - Generate Keywords for fuzzy labeling
 status <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema)
 message(status)
 
+
+####################################################################
+##NOTE: After generating the keywords manual curation is desired  ##
+####################################################################
 # Load Keyword list after editing
 keywordList_FF <- read.table('keywordlist.tsv', sep="\t", header=FALSE)
 ignoreList_FF <- read.table('ignorelist.tsv', sep="\t", header=FALSE)

@@ -8,7 +8,7 @@ Author:
     Marc A. Suchard [aut],
     Martijn J. Schuemie [aut]
 Maintainer: Juan M. Banda <jmbanda@stanford.edu>
-Description: Aphrodite use noisy class labels to create silver standard training corpora to construct phenotype models in conjunction with expert knowledge codified in existing ontologies and a comprehensive representation of the patient clinical record to learn phenotype models.
+Description: Aphrodite uses noisy class labels to create silver standard training corpora to construct phenotype models in conjunction with expert knowledge codified in existing ontologies and a comprehensive representation of the patient clinical record to learn phenotype models.
 License: Apache License 2.0
 Depends:
     R (>= 3.1.0)
