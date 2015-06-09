@@ -24,6 +24,13 @@ Installation
 install_github("ohdsi/Aphrodite")
 ```
 
+Loading
+===================
+
+```
+library(Aphrodite)
+```
+
 Before you start
 ===================
 
@@ -35,6 +42,8 @@ Full Example
 This fild is also found under /samples/complete_example.R
 
 ```r
+
+library(Aphrodite)
 
 folder = "/home/jmbanda/OHDSI/Aphrodite/R/" # Folder containing outputs, use forward slashes
 setwd(folder)
