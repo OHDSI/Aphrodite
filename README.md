@@ -4,7 +4,7 @@ Automated PHenotype Routine for Observational Definition, Identification, Traini
 
 Typically, patient groups corresponding to a phenotype are selected by rule-based definitions, whose development is time-consuming. Machine learning approaches, which are an alternative approach for electronic phenotyping, are hampered by the paucity of manually labeled gold standard corpora for training. We demonstrate the feasibility of using noisy class labels to create “silver standard” training corpora to construct phenotype models. Our approach uses such silver standard corpora, in conjunction with expert knowledge codified in existing ontologies and a comprehensive representation of the patient clinical record, to learn phenotype models.
 
-Reference (for now): http://knowledge.amia.org/amia-59309-cri2015-1.2002246/t-005-1.2003490/a-076-1.2003547/a-076-1.2003548/ap-076-1.2003549
+Reference (for now): http://www.dmmh.org/dmmi2014_submission_4.pdf?attredirects=0&d=1
 
 Requirementes
 ===================
