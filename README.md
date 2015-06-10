@@ -42,31 +42,29 @@ Full Example
 This file is also found under /samples/complete_example.R
 
 ```r
-
 library(Aphrodite)
 
-folder = "/home/jmbanda/OHDSI/Aphrodite/R/" # Folder containing outputs, use forward slashes
+folder = "/home/jmbanda/OHDSI/Aphrodite-TEMP/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
 
-###########################################################
-# All parameters connection info and extras are in        #
-# the file settings.R, please make any appropiate changes #
-###########################################################
-
-source("R/settings.R")  #This should be the modified settings.R file
+source("CopyOfsettings.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 
 #Initiate connection
 connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
 conn <- connect(connectionDetails)
 
-# STEP 1 - Generate Keywords for fuzzy labeling
-status <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema)
-message(status)
+# STEP 1 - Generate Keywords
+wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 
+write.table(wordLists$keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+
+message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
 
 ####################################################################
 ##NOTE: After generating the keywords manual curation is desired  ##
 ####################################################################
+
 # Load Keyword list after editing
 keywordList_FF <- read.table('keywordlist.tsv', sep="\t", header=FALSE)
 ignoreList_FF <- read.table('ignorelist.tsv', sep="\t", header=FALSE)
@@ -74,7 +72,7 @@ ignoreList_FF <- read.table('ignorelist.tsv', sep="\t", header=FALSE)
 
 # STEP 2 - Get cases, controls
 
-casesANDcontrolspatient_ids_df<- getdPatientCohort(conn,as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), cdmSchema,nCases,nControls)
+casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), cdmSchema,nCases,nControls)
 if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
     message("Not enough patients to get the number of cases specified")
     stop
@@ -96,13 +94,13 @@ if (saveALLresults) {
 # STEP 3 - Get Patient Data
 
 #Cases needs its own function
-dataFcases <-getPatientDataCases(conn, cases, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema)
+dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema)
 if (saveALLresults) {
     save(dataFcases,file=paste(studyName,"-RAW_FV_CASES_",as.character(nCases),".Rda",sep=''))
 }
 
 #Get Controls
-dataFcontrols <- getPatientData(conn, controls, flag , cdmSchema)
+dataFcontrols <- getPatientData(conn, dbms, controls, flag , cdmSchema)
 if (saveALLresults) {
     save(dataFcontrols,file=paste(studyName,"-RAW_FV_CONTROLS_",as.character(nControls),".Rda",sep=''))
 }
@@ -125,10 +123,9 @@ save(model, file=paste(flag$model[1], " MODEL FILE FOR ",outcomeName,".Rda",sep=
 #Save Predictors for model
 save(predictors, file=paste(flag$model[1], " PREDICTORS FOR ",outcomeName,".Rda",sep=''))
 
-
-
 #Close connection
 dbDisconnect(conn)
+
 
 ```
 
