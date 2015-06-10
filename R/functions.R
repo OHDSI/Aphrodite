@@ -68,7 +68,7 @@ executeSQL <- function (connection, schema, query, targetDBMS) {
 ##                                                                              ##
 ##################################################################################
 #' @export
-buildKeywordList <- function (connection, aphroditeConceptName, schema) {
+buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
 
     concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE lower(concept_name) =lower('",aphroditeConceptName,"') AND standard_concept = 'S' AND invalid_reason IS NULL AND domain_id = 'Condition';",sep = ""),dbms)
 
@@ -77,7 +77,7 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema) {
         concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_synonym_name FROM @cdmSchema.concept_synonym WHERE lower(concept_synonym_name)=lower('",aphroditeConceptName,"');",sep = ""),dbms)
         if (nrow(concept_of_interest) == 0) {
             status <- "No concepts found with the string provided, please try another one."
-            return(status)
+            stop(status)
         }
     }
     #Now that we have our concept (or set of them), we build the lists by expanding them
@@ -98,9 +98,13 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema) {
     ignorelist_ALL <- do.call(rbind, ignorelist_df)
     keywordlist_ALL <- do.call(rbind,keywordlist_clean_df)
     keywordlist_ALL <- keywordlist_ALL[-nrow(keywordlist_ALL),]
-    wordLists <- list(keywordlist_ALL = keywordlist_ALL, ignorelist_ALL = ignorelist_ALL)
-
-    return(wordLists)
+    #write.table(keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+    #write.table(ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+    #Clean some dataframes
+    #remove('keywordlist_clean_df','keywordlist_df','ignorelist_df', 'keywordlist_ALL', 'ignorelist_ALL')
+    #status <- paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphroditeConceptName,sep = "")
+    wordListsR <- list(keywordlist_ALL = keywordlist_ALL, ignorelist_ALL=ignorelist_ALL)
+    return(wordListsR)
 }
 
 ##################################################################################
@@ -115,7 +119,7 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema) {
 ##                                                                              ##
 ##################################################################################
 #' @export
-getdPatientCohort <- function (connection, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize) {
+getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize) {
 
     #Get empty list
     patients_list_df<- list()
@@ -151,7 +155,7 @@ getdPatientCohort <- function (connection, includeConceptlist, excludeConceptlis
 ##                                                                              ##
 ##################################################################################
 #' @export
-getPatientDataCases <- function (connection, patient_ids, keywords, ignores, flags, schema) {
+getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignores, flags, schema) {
     patientFeatures_drugexposures_df<- list()
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
@@ -273,7 +277,7 @@ getPatientDataCases <- function (connection, patient_ids, keywords, ignores, fla
 ##                                                                              ##
 ##################################################################################
 #' @export
-getPatientData <- function (connection, patient_ids, flags, schema) {
+getPatientData <- function (connection, dbms, patient_ids, flags, schema) {
     patientFeatures_drugexposures_df<- list()
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
