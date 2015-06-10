@@ -27,21 +27,35 @@
 # @author Juan M. Banda
 
 
-##################################################################################
-## executeSQL  - This function executes one single SQL statement                ##
-##                                                                              ##
-##                                                                              ##
-## Arguments:                                                                   ##
-## connection - current active DB connection                                    ##
-## schema - Schema name to use for SQL Render     - in specified in setings.R   ##
-## query - templated MS SQL Server query to execute                             ##
-## targetDBMS - query translated to which dialect - in specified in setings.R   ##
-##                                                                              ##
-##                                                                              ##
-## Returns:                                                                     ##
-## dataframe with query results                                                 ##
-##                                                                              ##
-##################################################################################
+#' This function executes one single SQL statement
+#'
+#' @description
+#' This function renders, translates and executes one single SQL statement that produces a result
+#'
+#' @param connection    The connection to the database server.
+#' @param schema        The database schema being used.
+#' @param query		    The SQL statement to retrieve the data.
+#' @param targetDBMS    The target DBMS for SQL to be rendered in.
+#'
+#' @details
+#' Renders, translates, and executes a single SQL statement that is expeting to produce and result.
+#'
+#' @return
+#' An object containing the data.
+#'
+#' @examples \dontrun{
+#'
+#'   library("SqlRender")
+#'   library("DatabaseConnector")
+#'   library("Aphordite")
+#'   connectionDetails <- createConnectionDetails(dbms="mysql", server="localhost",user="root",password="blah",schema="cdm_v5")
+#'   conn <- connect(connectionDetails)
+#'
+#'   concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @@cdmSchema.concept WHERE lower(concept_name) =lower('myocardial infarction') AND standard_concept = 'S' AND invalid_reason IS NULL AND domain_id = 'Condition';",sep = ""),dbms)
+#'
+#'   dbDisconnect(conn)
+#' }
+#'
 #' @export
 executeSQL <- function (connection, schema, query, targetDBMS) {
 
@@ -55,18 +69,37 @@ executeSQL <- function (connection, schema, query, targetDBMS) {
     return(queryResults)
 }
 
-##################################################################################
-##  buildKeywordList - This function generates a keyword list based on the      ##
-##       expansion of concepts                                                  ##
-##                                                                              ##
-## connection - current active DB connection                                    ##
-## aphrodite_concept_name - concept name to generate keywords off               ##
-## schema - Schema name to use for SQL Render translations                      ##
-##                                                                              ##
-## Returns:                                                                     ##
-## status of keyword list (built or not found)                                  ##
-##                                                                              ##
-##################################################################################
+#' This function generates keyword and ignore lists based on the expansion of concepts.
+#'
+#' @description
+#' Given any given concept_id or string of text this function generates keyword and
+#' ignore lists based on the expansion of concepts (looking at their synonyms).
+#'
+#' @param connection    The connection to the database server.
+#' @param aphroditeConceptName  The string of text / concept name to use.
+#' @param schema        The database schema being used.
+#' @param dbms          The target DBMS for SQL to be rendered in.
+#'
+#' @details
+#' Takes the aphroditeConceptName looks for synonyms and builds a list of related concepts using the vocabulary hierarchies
+#'
+#' @return
+#' A list with two elements: a list of positive keywords found (keywordlist_ALL), and a list of ignore keywords (ignorelist_ALL)
+#'
+#' @examples \dontrun{
+#'
+#'wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
+#'
+#'write.table(wordLists$keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+#'write.table(wordLists$ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+#'
+#'message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
+#'
+#'# Load Keyword list after editing
+#'keywordList_FF <- read.table('keywordlist.tsv', sep="\t", header=FALSE)
+#'ignoreList_FF <- read.table('ignorelist.tsv', sep="\t", header=FALSE)
+#' }
+#'
 #' @export
 buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
 
@@ -107,17 +140,41 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
     return(wordListsR)
 }
 
-##################################################################################
-##  buildKeywordList - This function generates a keyword list based on the      ##
-##       expansion of concepts                                                  ##
-##                                                                              ##
-## connection - current active DB connection                                    ##
-## aphrodite_concept_name - concept name to generate keywords off               ##
-## schema - Schema name to use for SQL Render translations                      ##
-##                                                                              ##
-## Returns:                                                                     ##
-##                                                                              ##
-##################################################################################
+
+#' This function builds a patient cohort (and controls) based on a concept list
+#'
+#' @description
+#' This function will build a patient cohort with its respective controls using an inclusion concept_id list as well as an exclussion concept_id list. The user specifies the number of both cases and controls for his cohort.
+#'
+#' @param connection    The connection to the database server.
+#' @param dbms          The target DBMS for SQL to be rendered in.
+#' @param includeConceptlist    The list of concept_id's used to build the cohort.
+#' @param excludeConceptlist    The list of concept_id's used as exclusion criteria for the cohort.
+#' @param schema        The database schema being used.
+#' @param cohortSize    The number of desired patients to appear in the cohort.
+#' @param controlSize   The number of desired patients to be in the control group.
+#'
+#' @details
+#' This function takes the lists of include and exclude concept_ids and finds all patients that satisfy this characteristics from the Observation and Condition_occurrence tables in CDM V5.
+#'
+#' @return
+#' A list of dataframes containing both cases and control patient_id's.
+#'
+#' @examples \dontrun{
+#'
+#'casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), cdmSchema,nCases,nControls)
+#'if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
+#'      message("Not enough patients to get the number of cases specified")
+#'      stop
+#'} else {
+#'    if (nCases > nrow(casesANDcontrolspatient_ids_df[[2]])) {
+#'        message("Not enough patients to get the number of controls specified")
+#'        stop
+#'    }
+#'}
+#'
+#' }
+#'
 #' @export
 getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize) {
 
@@ -142,18 +199,32 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     return(casesANDcontrols_df)
 }
 
-##################################################################################
-##  getPatientDataCases - We need a separate function for this since it gets    ##
-##      the data from the first mention of any of the terms. Only needed for    ##
-##      building the model.                                                     ##
-##                                                                              ##
-## connection - current active DB connection                                    ##
-## aphrodite_concept_name - concept name to generate keywords off               ##
-## schema - Schema name to use for SQL Render translations                      ##
-##                                                                              ##
-## Returns:                                                                     ##
-##                                                                              ##
-##################################################################################
+#' This function fetches all the patient data (non-generic) designed to work when building a model
+#'
+#' @description
+#' This function fetches all the patient data (non-generic) designed to work when building a model. Returns raw patient data.
+#'
+#' @param connection    The connection to the database server.
+#' @param dbms          The target DBMS for SQL to be rendered in.
+#' @param patient_ids   The list of case patient id's to extract data from.
+#' @param keywords      The list of concept_id's used to build the cohort.
+#' @param ignores       The list of concept_id's ignored when building the cohort.
+#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
+#' @param schema        The database schema being used.
+#'
+#' @details
+#' Based on the groups of feature sets determined in the flags variable, this function will fetch patient data.
+#' The function determines the first mention of the keywords and selects that date to start the data extraction of the remaining patient information
+#'
+#' @return
+#' An object containing the raw feature sets for the patient data.
+#'
+#' @examples \dontrun{
+#'
+#'  dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3), flag , cdmSchema)
+#'
+#' }
+#'
 #' @export
 getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignores, flags, schema) {
     patientFeatures_drugexposures_df<- list()
@@ -166,8 +237,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
 
-        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
-        #Find the first date of the term mentions
+        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
 
@@ -266,16 +336,30 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     return (dataCases)
 }
 
-##################################################################################
-##  getPatientData - Generic function to get ALL patient data                   ##
-##                                                                              ##
-## connection - current active DB connection                                    ##
-## aphrodite_concept_name - concept name to generate keywords off               ##
-## schema - Schema name to use for SQL Render translations                      ##
-##                                                                              ##
-## Returns:                                                                     ##
-##                                                                              ##
-##################################################################################
+#' This function fetches all the patient data (generic)
+#'
+#' @description
+#' This function fetches all the patient data (generic). Returns raw patient data.
+#'
+#' @param connection    The connection to the database server.
+#' @param dbms          The target DBMS for SQL to be rendered in.
+#' @param patient_ids   The list of case patient id's to extract data from.
+#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
+#' @param schema        The database schema being used.
+#'
+#' @details
+#' Based on the groups of feature sets determined in the flags variable, this function will fetch patient data.
+#' The function returns all patient information
+#'
+#' @return
+#' An object containing the raw feature sets for the patient data.
+#'
+#' @examples \dontrun{
+#'
+#'  dataFcontrols <- getPatientData(conn, dbms, controls, flag , cdmSchema)
+#'
+#' }
+#'
 #' @export
 getPatientData <- function (connection, dbms, patient_ids, flags, schema) {
     patientFeatures_drugexposures_df<- list()
@@ -375,12 +459,31 @@ patientData <- list(drugExposures = patientFeatures_drugexposures_df, observatio
 return (patientData)
 }
 
-##################################################################################
-##  buildFeatureVector - Function to flatten patient data into feature vectors  ##
-##                                                                              ##
-## Returns:                                                                     ##
-##                                                                              ##
-##################################################################################
+#' This function builds a feature vector using raw patient data
+#'
+#' @description
+#' This function builds a feature vector using raw patient data. Returns a patient feature vector (divided by feature sets).
+#'
+#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
+#' @param casesS        Dataframe containing the raw patient data.
+#' @param controlsS     (OPTIONAL) Dataframe containing the raw patient data.
+#'
+#' @details
+#' This function flattens the patient feature data (per feature set) into a feature vector that will be used as input for caret. This function can optionally flat two sources of patient data (cases and controls)
+#'
+#' @return
+#' An object containing the flattened feature vectors for all given feature sets.
+#'
+#' @examples \dontrun{
+#'
+#'  fv_all<-buildFeatureVector(flag, dataFcases,dataFcontrols)
+#'
+#'  #OR
+#'
+#'  fv_cases<-buildFeatureVector(flag, dataFcases)
+#'
+#' }
+#'
 #' @export
 buildFeatureVector <- function (flags, casesS, controlsS) {
 
@@ -498,14 +601,29 @@ featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, obser
 return (featureVectors)
 }
 
-
-
-##################################################################################
-##  buildModel - Function to build predictive model for selected patient data   ##
-##                                                                              ##
-## Returns:                                                                     ##
-##                                                                              ##
-##################################################################################
+#' This function builds a model for the specified feature vector using cases and controls for a certain outcomeName
+#'
+#' @description
+#' This function builds a model for the specified feature vector using cases and controls for a certain outcomeName. Returns a caret trained model.
+#'
+#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
+#' @param cases_pids    List of patient_id's considered cases (for labeling purposes)
+#' @param controls_pids List of patient_id's considered controls (for labeling purposes)
+#' @param featureVector Flattened feature vector returned by buildFeatureVector function.
+#' @param outcomeNameS  String description of the outcome for which the model is being built
+#'
+#' @details
+#' This function builds a model for the specified outcomeName. The model is specified in the flags dataframe (currently only supports LASSO). The cases_pids and controld_pids are patient_id's used for the labeling of the testing and training sets.
+#'
+#' @return
+#' An transferable caret Model object
+#'
+#' @examples \dontrun{
+#'
+#'  model_predictors <- buildModel(flag, cases, controls, fv_all, outcomeName)
+#'
+#' }
+#'
 #' @export
 buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS) {
     feature_vectors <- list()
