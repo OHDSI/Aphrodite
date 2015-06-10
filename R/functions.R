@@ -98,12 +98,9 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema) {
     ignorelist_ALL <- do.call(rbind, ignorelist_df)
     keywordlist_ALL <- do.call(rbind,keywordlist_clean_df)
     keywordlist_ALL <- keywordlist_ALL[-nrow(keywordlist_ALL),]
-    write.table(keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-    write.table(ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-    #Clean some dataframes
-    #remove('keywordlist_clean_df','keywordlist_df','ignorelist_df', 'keywordlist_ALL', 'ignorelist_ALL')
-    status <- paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphroditeConceptName,sep = "")
-    return(status)
+    wordLists <- list(keywordlist_ALL = keywordlist_ALL, ignorelist_ALL = ignorelist_ALL)
+
+    return(wordLists)
 }
 
 ##################################################################################
