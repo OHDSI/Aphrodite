@@ -19,10 +19,12 @@ executeSQL(connection, schema, query, targetDBMS)
 An object containing the data.
 }
 \description{
-This function renders, translates and executes one single SQL statement that produces a result
+This function renders, translates and executes one single SQL
+  statement that produces a result
 }
 \details{
-Renders, translates, and executes a single SQL statement that is expeting to produce and result.
+Renders, translates, and executes a single SQL statement that is
+  expeting to produce and result.
 }
 \examples{
 \dontrun{
@@ -30,10 +32,14 @@ Renders, translates, and executes a single SQL statement that is expeting to pro
   library("SqlRender")
   library("DatabaseConnector")
   library("Aphordite")
-  connectionDetails <- createConnectionDetails(dbms="mysql", server="localhost",user="root",password="blah",schema="cdm_v5")
+  connectionDetails <- createConnectionDetails(dbms="mysql", server="localhost",
+         user="root", password="blah" ,schema="cdm_v5")
   conn <- connect(connectionDetails)
 
-  concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE lower(concept_name) =lower('myocardial infarction') AND standard_concept = 'S' AND invalid_reason IS NULL AND domain_id = 'Condition';",sep = ""),dbms)
+  concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id,
+         concept_name FROM @cdmSchema.concept WHERE lower(concept_name) =
+         lower('myocardial infarction') AND standard_concept = 'S' AND
+         invalid_reason IS NULL AND domain_id = 'Condition';" ,sep = ""),dbms)
 
   dbDisconnect(conn)
 }

@@ -7,20 +7,25 @@
 buildFeatureVector(flags, casesS, controlsS)
 }
 \arguments{
-\item{flags}{The R dataframe that contains all feature/model flags specified in settings.R.}
+\item{flags}{The R dataframe that contains all feature/model flags
+specified in settings.R.}
 
 \item{casesS}{Dataframe containing the raw patient data.}
 
 \item{controlsS}{(OPTIONAL) Dataframe containing the raw patient data.}
 }
 \value{
-An object containing the flattened feature vectors for all given feature sets.
+An object containing the flattened feature vectors for all given
+feature sets.
 }
 \description{
-This function builds a feature vector using raw patient data. Returns a patient feature vector (divided by feature sets).
+This function builds a feature vector using raw patient data.
+Returns a patient feature vector (divided by feature sets).
 }
 \details{
-This function flattens the patient feature data (per feature set) into a feature vector that will be used as input for caret. This function can optionally flat two sources of patient data (cases and controls)
+This function flattens the patient feature data (per feature set)
+into a feature vector that will be used as input for caret. This function can
+optionally flat two sources of patient data (cases and controls)
 }
 \examples{
 \dontrun{

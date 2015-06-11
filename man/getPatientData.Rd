@@ -13,7 +13,8 @@ getPatientData(connection, dbms, patient_ids, flags, schema)
 
 \item{patient_ids}{The list of case patient id's to extract data from.}
 
-\item{flags}{The R dataframe that contains all feature/model flags specified in settings.R.}
+\item{flags}{The R dataframe that contains all feature/model flags
+specified in settings.R.}
 
 \item{schema}{The database schema being used.}
 }
@@ -21,11 +22,13 @@ getPatientData(connection, dbms, patient_ids, flags, schema)
 An object containing the raw feature sets for the patient data.
 }
 \description{
-This function fetches all the patient data (generic). Returns raw patient data.
+This function fetches all the patient data (generic). Returns
+raw patient data.
 }
 \details{
-Based on the groups of feature sets determined in the flags variable, this function will fetch patient data.
-The function returns all patient information
+Based on the groups of feature sets determined in the flags
+variable, this function will fetch patient data. The function returns all
+patient information
 }
 \examples{
 \dontrun{

@@ -2,7 +2,8 @@
 % Please edit documentation in R/functions.R
 \name{buildKeywordList}
 \alias{buildKeywordList}
-\title{This function generates keyword and ignore lists based on the expansion of concepts.}
+\title{This function generates keyword and ignore lists based on the expansion of
+concepts.}
 \usage{
 buildKeywordList(connection, aphroditeConceptName, schema, dbms)
 }
@@ -16,28 +17,23 @@ buildKeywordList(connection, aphroditeConceptName, schema, dbms)
 \item{dbms}{The target DBMS for SQL to be rendered in.}
 }
 \value{
-A list with two elements: a list of positive keywords found (keywordlist_ALL), and a list of ignore keywords (ignorelist_ALL)
+A list with two elements: a list of positive keywords found
+(keywordlist_ALL), and a list of ignore keywords (ignorelist_ALL)
 }
 \description{
-Given any given concept_id or string of text this function generates keyword and
-ignore lists based on the expansion of concepts (looking at their synonyms).
+Given any given concept_id or string of text this function
+generates keyword and ignore lists based on the expansion of concepts (looking
+at their synonyms).
 }
 \details{
-Takes the aphroditeConceptName looks for synonyms and builds a list of related concepts using the vocabulary hierarchies
+Takes the aphroditeConceptName looks for synonyms and builds a list
+of related concepts using the vocabulary hierarchies
 }
 \examples{
 \dontrun{
 
 wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 
-write.table(wordLists$keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\\t', row.names = FALSE, col.names = FALSE)
-write.table(wordLists$ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\\t', row.names = FALSE, col.names = FALSE)
-
-message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
-
-# Load Keyword list after editing
-keywordList_FF <- read.table('keywordlist.tsv', sep="\\t", header=FALSE)
-ignoreList_FF <- read.table('ignorelist.tsv', sep="\\t", header=FALSE)
 }
 }
 

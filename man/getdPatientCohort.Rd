@@ -12,29 +12,39 @@ getdPatientCohort(connection, dbms, includeConceptlist, excludeConceptlist,
 
 \item{dbms}{The target DBMS for SQL to be rendered in.}
 
-\item{includeConceptlist}{The list of concept_id's used to build the cohort.}
+\item{includeConceptlist}{The list of concept_id's used to build the
+cohort.}
 
-\item{excludeConceptlist}{The list of concept_id's used as exclusion criteria for the cohort.}
+\item{excludeConceptlist}{The list of concept_id's used as exclusion
+criteria for the cohort.}
 
 \item{schema}{The database schema being used.}
 
 \item{cohortSize}{The number of desired patients to appear in the cohort.}
 
-\item{controlSize}{The number of desired patients to be in the control group.}
+\item{controlSize}{The number of desired patients to be in the control
+ group.}
 }
 \value{
 A list of dataframes containing both cases and control patient_id's.
 }
 \description{
-This function will build a patient cohort with its respective controls using an inclusion concept_id list as well as an exclussion concept_id list. The user specifies the number of both cases and controls for his cohort.
+This function will build a patient cohort with its respective
+controls using an inclusion concept_id list as well as an exclussion
+concept_id list. The user specifies the number of both cases and controls for
+his cohort.
 }
 \details{
-This function takes the lists of include and exclude concept_ids and finds all patients that satisfy this characteristics from the Observation and Condition_occurrence tables in CDM V5.
+This function takes the lists of include and exclude concept_ids and
+finds all patients that satisfy this characteristics from the Observation and
+Condition_occurrence tables in CDM V5.
 }
 \examples{
 \dontrun{
 
-casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), cdmSchema,nCases,nControls)
+casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,
+         as.character(keywordList_FF$V3), as.character(ignoreList_FF$V3),
+         cdmSchema,nCases,nControls)
 if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
      message("Not enough patients to get the number of cases specified")
      stop

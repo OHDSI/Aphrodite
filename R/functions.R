@@ -29,29 +29,32 @@
 
 #' This function executes one single SQL statement
 #'
-#' @description
-#' This function renders, translates and executes one single SQL statement that produces a result
+#' @description This function renders, translates and executes one single SQL
+#'   statement that produces a result
 #'
 #' @param connection    The connection to the database server.
 #' @param schema        The database schema being used.
 #' @param query		    The SQL statement to retrieve the data.
 #' @param targetDBMS    The target DBMS for SQL to be rendered in.
 #'
-#' @details
-#' Renders, translates, and executes a single SQL statement that is expeting to produce and result.
+#' @details Renders, translates, and executes a single SQL statement that is
+#'   expeting to produce and result.
 #'
-#' @return
-#' An object containing the data.
+#' @return An object containing the data.
 #'
 #' @examples \dontrun{
 #'
 #'   library("SqlRender")
 #'   library("DatabaseConnector")
 #'   library("Aphordite")
-#'   connectionDetails <- createConnectionDetails(dbms="mysql", server="localhost",user="root",password="blah",schema="cdm_v5")
+#'   connectionDetails <- createConnectionDetails(dbms="mysql", server="localhost",
+#'          user="root", password="blah" ,schema="cdm_v5")
 #'   conn <- connect(connectionDetails)
 #'
-#'   concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @@cdmSchema.concept WHERE lower(concept_name) =lower('myocardial infarction') AND standard_concept = 'S' AND invalid_reason IS NULL AND domain_id = 'Condition';",sep = ""),dbms)
+#'   concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id,
+#'          concept_name FROM @@cdmSchema.concept WHERE lower(concept_name) =
+#'          lower('myocardial infarction') AND standard_concept = 'S' AND
+#'          invalid_reason IS NULL AND domain_id = 'Condition';" ,sep = ""),dbms)
 #'
 #'   dbDisconnect(conn)
 #' }
@@ -69,38 +72,31 @@ executeSQL <- function (connection, schema, query, targetDBMS) {
     return(queryResults)
 }
 
-#' This function generates keyword and ignore lists based on the expansion of concepts.
+#'This function generates keyword and ignore lists based on the expansion of
+#'concepts.
 #'
-#' @description
-#' Given any given concept_id or string of text this function generates keyword and
-#' ignore lists based on the expansion of concepts (looking at their synonyms).
+#'@description Given any given concept_id or string of text this function
+#'generates keyword and ignore lists based on the expansion of concepts (looking
+#'at their synonyms).
 #'
-#' @param connection    The connection to the database server.
-#' @param aphroditeConceptName  The string of text / concept name to use.
-#' @param schema        The database schema being used.
-#' @param dbms          The target DBMS for SQL to be rendered in.
+#'@param connection    The connection to the database server.
+#'@param aphroditeConceptName  The string of text / concept name to use.
+#'@param schema        The database schema being used.
+#'@param dbms          The target DBMS for SQL to be rendered in.
 #'
-#' @details
-#' Takes the aphroditeConceptName looks for synonyms and builds a list of related concepts using the vocabulary hierarchies
+#'@details Takes the aphroditeConceptName looks for synonyms and builds a list
+#'of related concepts using the vocabulary hierarchies
 #'
-#' @return
-#' A list with two elements: a list of positive keywords found (keywordlist_ALL), and a list of ignore keywords (ignorelist_ALL)
+#'@return A list with two elements: a list of positive keywords found
+#'(keywordlist_ALL), and a list of ignore keywords (ignorelist_ALL)
 #'
 #' @examples \dontrun{
 #'
 #'wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 #'
-#'write.table(wordLists$keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-#'write.table(wordLists$ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-#'
-#'message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
-#'
-#'# Load Keyword list after editing
-#'keywordList_FF <- read.table('keywordlist.tsv', sep="\t", header=FALSE)
-#'ignoreList_FF <- read.table('ignorelist.tsv', sep="\t", header=FALSE)
 #' }
 #'
-#' @export
+#'@export
 buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
 
     concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE lower(concept_name) =lower('",aphroditeConceptName,"') AND standard_concept = 'S' AND invalid_reason IS NULL AND domain_id = 'Condition';",sep = ""),dbms)
@@ -131,38 +127,40 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
     ignorelist_ALL <- do.call(rbind, ignorelist_df)
     keywordlist_ALL <- do.call(rbind,keywordlist_clean_df)
     keywordlist_ALL <- keywordlist_ALL[-nrow(keywordlist_ALL),]
-    #write.table(keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-    #write.table(ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-    #Clean some dataframes
-    #remove('keywordlist_clean_df','keywordlist_df','ignorelist_df', 'keywordlist_ALL', 'ignorelist_ALL')
-    #status <- paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphroditeConceptName,sep = "")
     wordListsR <- list(keywordlist_ALL = keywordlist_ALL, ignorelist_ALL=ignorelist_ALL)
     return(wordListsR)
 }
 
 
-#' This function builds a patient cohort (and controls) based on a concept list
+#'This function builds a patient cohort (and controls) based on a concept list
 #'
-#' @description
-#' This function will build a patient cohort with its respective controls using an inclusion concept_id list as well as an exclussion concept_id list. The user specifies the number of both cases and controls for his cohort.
+#'@description This function will build a patient cohort with its respective
+#'controls using an inclusion concept_id list as well as an exclussion
+#'concept_id list. The user specifies the number of both cases and controls for
+#'his cohort.
 #'
-#' @param connection    The connection to the database server.
-#' @param dbms          The target DBMS for SQL to be rendered in.
-#' @param includeConceptlist    The list of concept_id's used to build the cohort.
-#' @param excludeConceptlist    The list of concept_id's used as exclusion criteria for the cohort.
-#' @param schema        The database schema being used.
-#' @param cohortSize    The number of desired patients to appear in the cohort.
-#' @param controlSize   The number of desired patients to be in the control group.
+#'@param connection    The connection to the database server.
+#'@param dbms          The target DBMS for SQL to be rendered in.
+#'@param includeConceptlist    The list of concept_id's used to build the
+#'  cohort.
+#'@param excludeConceptlist    The list of concept_id's used as exclusion
+#'  criteria for the cohort.
+#'@param schema        The database schema being used.
+#'@param cohortSize    The number of desired patients to appear in the cohort.
+#'@param controlSize   The number of desired patients to be in the control
+#'  group.
 #'
-#' @details
-#' This function takes the lists of include and exclude concept_ids and finds all patients that satisfy this characteristics from the Observation and Condition_occurrence tables in CDM V5.
+#'@details This function takes the lists of include and exclude concept_ids and
+#'finds all patients that satisfy this characteristics from the Observation and
+#'Condition_occurrence tables in CDM V5.
 #'
-#' @return
-#' A list of dataframes containing both cases and control patient_id's.
+#'@return A list of dataframes containing both cases and control patient_id's.
 #'
 #' @examples \dontrun{
 #'
-#'casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), cdmSchema,nCases,nControls)
+#'casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,
+#'          as.character(keywordList_FF$V3), as.character(ignoreList_FF$V3),
+#'          cdmSchema,nCases,nControls)
 #'if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
 #'      message("Not enough patients to get the number of cases specified")
 #'      stop
@@ -175,7 +173,7 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
 #'
 #' }
 #'
-#' @export
+#'@export
 getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize) {
 
     #Get empty list
@@ -199,29 +197,33 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     return(casesANDcontrols_df)
 }
 
-#' This function fetches all the patient data (non-generic) designed to work when building a model
+#' This function fetches all the patient data (non-generic) designed to work
+#' when building a model
 #'
-#' @description
-#' This function fetches all the patient data (non-generic) designed to work when building a model. Returns raw patient data.
+#' @description This function fetches all the patient data (non-generic)
+#' designed to work when building a model. Returns raw patient data.
 #'
 #' @param connection    The connection to the database server.
 #' @param dbms          The target DBMS for SQL to be rendered in.
 #' @param patient_ids   The list of case patient id's to extract data from.
 #' @param keywords      The list of concept_id's used to build the cohort.
-#' @param ignores       The list of concept_id's ignored when building the cohort.
-#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
+#' @param ignores       The list of concept_id's ignored when building the
+#'   cohort.
+#' @param flags         The R dataframe that contains all feature/model flags
+#'   specified in settings.R.
 #' @param schema        The database schema being used.
 #'
-#' @details
-#' Based on the groups of feature sets determined in the flags variable, this function will fetch patient data.
-#' The function determines the first mention of the keywords and selects that date to start the data extraction of the remaining patient information
+#' @details Based on the groups of feature sets determined in the flags
+#' variable, this function will fetch patient data. The function determines the
+#' first mention of the keywords and selects that date to start the data
+#' extraction of the remaining patient information
 #'
-#' @return
-#' An object containing the raw feature sets for the patient data.
+#' @return An object containing the raw feature sets for the patient data.
 #'
 #' @examples \dontrun{
 #'
-#'  dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3), flag , cdmSchema)
+#'  dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3),
+#'          flag , cdmSchema)
 #'
 #' }
 #'
@@ -338,21 +340,21 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 
 #' This function fetches all the patient data (generic)
 #'
-#' @description
-#' This function fetches all the patient data (generic). Returns raw patient data.
+#' @description This function fetches all the patient data (generic). Returns
+#' raw patient data.
 #'
 #' @param connection    The connection to the database server.
 #' @param dbms          The target DBMS for SQL to be rendered in.
 #' @param patient_ids   The list of case patient id's to extract data from.
-#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
+#' @param flags         The R dataframe that contains all feature/model flags
+#'   specified in settings.R.
 #' @param schema        The database schema being used.
 #'
-#' @details
-#' Based on the groups of feature sets determined in the flags variable, this function will fetch patient data.
-#' The function returns all patient information
+#' @details Based on the groups of feature sets determined in the flags
+#' variable, this function will fetch patient data. The function returns all
+#' patient information
 #'
-#' @return
-#' An object containing the raw feature sets for the patient data.
+#' @return An object containing the raw feature sets for the patient data.
 #'
 #' @examples \dontrun{
 #'
@@ -461,18 +463,20 @@ return (patientData)
 
 #' This function builds a feature vector using raw patient data
 #'
-#' @description
-#' This function builds a feature vector using raw patient data. Returns a patient feature vector (divided by feature sets).
+#' @description This function builds a feature vector using raw patient data.
+#' Returns a patient feature vector (divided by feature sets).
 #'
-#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
+#' @param flags         The R dataframe that contains all feature/model flags
+#'   specified in settings.R.
 #' @param casesS        Dataframe containing the raw patient data.
 #' @param controlsS     (OPTIONAL) Dataframe containing the raw patient data.
 #'
-#' @details
-#' This function flattens the patient feature data (per feature set) into a feature vector that will be used as input for caret. This function can optionally flat two sources of patient data (cases and controls)
+#' @details This function flattens the patient feature data (per feature set)
+#' into a feature vector that will be used as input for caret. This function can
+#' optionally flat two sources of patient data (cases and controls)
 #'
-#' @return
-#' An object containing the flattened feature vectors for all given feature sets.
+#' @return An object containing the flattened feature vectors for all given
+#' feature sets.
 #'
 #' @examples \dontrun{
 #'
@@ -601,22 +605,30 @@ featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, obser
 return (featureVectors)
 }
 
-#' This function builds a model for the specified feature vector using cases and controls for a certain outcomeName
+#' This function builds a model for the specified feature vector using cases and
+#' controls for a certain outcomeName
 #'
-#' @description
-#' This function builds a model for the specified feature vector using cases and controls for a certain outcomeName. Returns a caret trained model.
+#' @description This function builds a model for the specified feature vector
+#' using cases and controls for a certain outcomeName. Returns a caret trained
+#' model.
 #'
-#' @param flags         The R dataframe that contains all feature/model flags specified in settings.R.
-#' @param cases_pids    List of patient_id's considered cases (for labeling purposes)
-#' @param controls_pids List of patient_id's considered controls (for labeling purposes)
-#' @param featureVector Flattened feature vector returned by buildFeatureVector function.
-#' @param outcomeNameS  String description of the outcome for which the model is being built
+#' @param flags         The R dataframe that contains all feature/model flags
+#'   specified in settings.R.
+#' @param cases_pids    List of patient_id's considered cases (for labeling
+#'   purposes)
+#' @param controls_pids List of patient_id's considered controls (for labeling
+#'   purposes)
+#' @param featureVector Flattened feature vector returned by buildFeatureVector
+#'   function.
+#' @param outcomeNameS  String description of the outcome for which the model is
+#'   being built
 #'
-#' @details
-#' This function builds a model for the specified outcomeName. The model is specified in the flags dataframe (currently only supports LASSO). The cases_pids and controld_pids are patient_id's used for the labeling of the testing and training sets.
+#' @details This function builds a model for the specified outcomeName. The
+#' model is specified in the flags dataframe (currently only supports LASSO).
+#' The cases_pids and controld_pids are patient_id's used for the labeling of
+#' the testing and training sets.
 #'
-#' @return
-#' An transferable caret Model object
+#' @return An transferable caret Model object
 #'
 #' @examples \dontrun{
 #'

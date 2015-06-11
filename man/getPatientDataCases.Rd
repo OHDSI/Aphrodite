@@ -2,7 +2,8 @@
 % Please edit documentation in R/functions.R
 \name{getPatientDataCases}
 \alias{getPatientDataCases}
-\title{This function fetches all the patient data (non-generic) designed to work when building a model}
+\title{This function fetches all the patient data (non-generic) designed to work
+when building a model}
 \usage{
 getPatientDataCases(connection, dbms, patient_ids, keywords, ignores, flags,
   schema)
@@ -16,9 +17,11 @@ getPatientDataCases(connection, dbms, patient_ids, keywords, ignores, flags,
 
 \item{keywords}{The list of concept_id's used to build the cohort.}
 
-\item{ignores}{The list of concept_id's ignored when building the cohort.}
+\item{ignores}{The list of concept_id's ignored when building the
+cohort.}
 
-\item{flags}{The R dataframe that contains all feature/model flags specified in settings.R.}
+\item{flags}{The R dataframe that contains all feature/model flags
+specified in settings.R.}
 
 \item{schema}{The database schema being used.}
 }
@@ -26,16 +29,20 @@ getPatientDataCases(connection, dbms, patient_ids, keywords, ignores, flags,
 An object containing the raw feature sets for the patient data.
 }
 \description{
-This function fetches all the patient data (non-generic) designed to work when building a model. Returns raw patient data.
+This function fetches all the patient data (non-generic)
+designed to work when building a model. Returns raw patient data.
 }
 \details{
-Based on the groups of feature sets determined in the flags variable, this function will fetch patient data.
-The function determines the first mention of the keywords and selects that date to start the data extraction of the remaining patient information
+Based on the groups of feature sets determined in the flags
+variable, this function will fetch patient data. The function determines the
+first mention of the keywords and selects that date to start the data
+extraction of the remaining patient information
 }
 \examples{
 \dontrun{
 
- dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3), flag , cdmSchema)
+ dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3),
+         flag , cdmSchema)
 
 }
 }

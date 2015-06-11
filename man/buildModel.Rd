@@ -2,29 +2,40 @@
 % Please edit documentation in R/functions.R
 \name{buildModel}
 \alias{buildModel}
-\title{This function builds a model for the specified feature vector using cases and controls for a certain outcomeName}
+\title{This function builds a model for the specified feature vector using cases and
+controls for a certain outcomeName}
 \usage{
 buildModel(flags, cases_pids, controls_pids, featureVector, outcomeNameS)
 }
 \arguments{
-\item{flags}{The R dataframe that contains all feature/model flags specified in settings.R.}
+\item{flags}{The R dataframe that contains all feature/model flags
+specified in settings.R.}
 
-\item{cases_pids}{List of patient_id's considered cases (for labeling purposes)}
+\item{cases_pids}{List of patient_id's considered cases (for labeling
+purposes)}
 
-\item{controls_pids}{List of patient_id's considered controls (for labeling purposes)}
+\item{controls_pids}{List of patient_id's considered controls (for labeling
+purposes)}
 
-\item{featureVector}{Flattened feature vector returned by buildFeatureVector function.}
+\item{featureVector}{Flattened feature vector returned by buildFeatureVector
+function.}
 
-\item{outcomeNameS}{String description of the outcome for which the model is being built}
+\item{outcomeNameS}{String description of the outcome for which the model is
+  being built}
 }
 \value{
 An transferable caret Model object
 }
 \description{
-This function builds a model for the specified feature vector using cases and controls for a certain outcomeName. Returns a caret trained model.
+This function builds a model for the specified feature vector
+using cases and controls for a certain outcomeName. Returns a caret trained
+model.
 }
 \details{
-This function builds a model for the specified outcomeName. The model is specified in the flags dataframe (currently only supports LASSO). The cases_pids and controld_pids are patient_id's used for the labeling of the testing and training sets.
+This function builds a model for the specified outcomeName. The
+model is specified in the flags dataframe (currently only supports LASSO).
+The cases_pids and controld_pids are patient_id's used for the labeling of
+the testing and training sets.
 }
 \examples{
 \dontrun{
