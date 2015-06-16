@@ -64,11 +64,17 @@ executeSQL <- function (connection, schema, query, targetDBMS) {
 
     renderedSql <- renderSql(query, cdmSchema=schema)$sql
     translatedSql <- translateSql(renderedSql, sourceDialect = "sql server", targetDialect = targetDBMS)$sql
-    if (targetDBMS=="postgresql") {
-        queryResults <- dbGetQueryPostgreSql(connection,translatedSql)
-    } else {
-        queryResults <- dbGetQuery.ffdf(connection,translatedSql)
-    }
+
+    queryResults <- querySql(connection,translatedSql)
+
+    names(queryResults) <- tolower(names(queryResults))  #Hack added to make the field names lowercase - should/might be removed later
+
+    #Broken code from 5/11/2015
+    #if (targetDBMS=="postgresql") {
+    #    queryResults <- dbGetQueryPostgreSql(connection,translatedSql)
+    #} else {
+    #    queryResults <- dbGetQuery.ffdf(connection,translatedSql)
+    #}
     return(queryResults)
 }
 

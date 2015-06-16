@@ -28,7 +28,11 @@
 # install.packages("devtools")
 #install_github("ohdsi/Aphrodite")
 library(Aphrodite)
-
+library(SqlRender)
+library(plyr)
+library(caret)
+library(pROC)
+library(DatabaseConnector)
 folder = "/home/jmbanda/OHDSI/Aphrodite-TEMP/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
 
