@@ -502,69 +502,17 @@ if (missing(controlsS)) {
     featuresDE<-casesS$drugExposures
     featuresOB<-casesS$observations
     featuresVISIT<-casesS$visits
+    featuresLABS <- casesS$labs
 
-    patientFeatures_cases_labs_df_n<- list()
-
-    if (flags$labs[1]) {
-        for (patientQueue in 1:length(casesS$labs)) {
-            if (length(casesS$labs[patientQueue])==0) {
-                patientFeatures_cases_labs_df_n[[patientQueue]]<-casesS$labs[patientQueue]
-            } else {
-                tmpJP<-casesS$labs[patientQueue]
-                i<- sapply(tmpJP, is.factor)
-                tmpJP[i] <- lapply(tmpJP[i], as.character)
-                tmp_col <- colnames(tmpJP)
-                tmpJP <- as.data.frame(lapply(tmpJP, as.numeric))
-                colnames(tmpJP) <- tmp_col
-                row.names(tmpJP)<-as.character(row.names(casesS$labs[patientQueue]))
-                patientFeatures_cases_labs_df_n[[patientQueue]]<-tmpJP
-            }
-        }
-    }
-    featuresLABS<-patientFeatures_cases_labs_df_n
-} else {
+}
+else {
     featuresDE<-append(casesS$drugExposures,controlsS$drugExposures)
     featuresOB<-append(casesS$observations,controlsS$observations)
     featuresVISIT<-append(casesS$visits,controlsS$visits)
-    patientFeatures_controls_labs_df_n<- list()
-    patientFeatures_cases_labs_df_n<- list()
-
-    if (flags$labs[1]) {
-        for (patientQueue in 1:length(casesS$labs)) {
-            if (length(casesS$labs[patientQueue])==0) {
-                patientFeatures_cases_labs_df_n[[patientQueue]]<-casesS$labs[patientQueue]
-            } else {
-                tmpJP<-casesS$labs[patientQueue]
-                i<- sapply(tmpJP, is.factor)
-                tmpJP[i] <- lapply(tmpJP[i], as.character)
-                tmp_col <- colnames(tmpJP)
-                tmpJP <- as.data.frame(lapply(tmpJP, as.numeric))
-                colnames(tmpJP) <- tmp_col
-                row.names(tmpJP)<-as.character(row.names(casesS$labs[patientQueue]))
-                patientFeatures_cases_labs_df_n[[patientQueue]]<-tmpJP
-            }
-        }
-    }
-    if (flags$labs[1]) {
-        for (patientQueue in 1:length(controlsS$labs)) {
-            if (length(controlsS$labs[patientQueue])==0) {
-                patientFeatures_controls_labs_df_n[[patientQueue]]<-controlsS$labs[patientQueue]
-            } else {
-                tmpJP<-controlsS$labs[patientQueue]
-                i<- sapply(tmpJP, is.factor)
-                tmpJP[i] <- lapply(tmpJP[i], as.character)
-                tmp_col <- colnames(tmpJP)
-                tmpJP <- as.data.frame(lapply(tmpJP, as.numeric))
-                colnames(tmpJP) <- tmp_col
-                row.names(tmpJP)<-as.character(row.names(controlsS$labs[patientQueue]))
-                patientFeatures_controls_labs_df_n[[patientQueue]]<-tmpJP
-            }
-        }
-    }
-    featuresLABS<-append(patientFeatures_cases_labs_df_n, patientFeatures_controls_labs_df_n)
-
+    featuresLABS <- append(casesS$labs, controlsS$labs)
+    message("Features successfully loaded")
 }
-
+ 
 #We now flatten the vectors
 if (flags$observations[1]) {
     test<-featuresOB
@@ -573,9 +521,10 @@ if (flags$observations[1]) {
     colnames(FV_ob)<-paste('obs:',colnames(FV_ob),sep='')
     colnames(FV_ob)[1]<-"pid"
     rm(test)
-} else {
+} else { 
     FV_ob <- NULL
 }
+
 if (flags$visits[1]) {
     test<-featuresVISIT
     FV_v <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
@@ -586,6 +535,7 @@ if (flags$visits[1]) {
 } else {
     FV_v <- NULL
 }
+
 if (flags$drugexposures[1]) {
     test<-featuresDE
     FV_de <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
@@ -596,20 +546,37 @@ if (flags$drugexposures[1]) {
 } else {
     FV_de <- NULL
 }
+
 if (flags$labs[1]) {
     test<-featuresLABS
     FV_lab <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-    FV_lab[is.na(FV_lab)]<-0
-    colnames(FV_lab)<-paste('lab:',colnames(FV_lab),sep='')
-    colnames(FV_lab)[1]<-"pid"
+    # Not sure why this isn't working:
+    #FV_labDT <- data.table(FV_lab)
+    #FV_labDT <- FV_labDT[, lapply(.SD as.numeric), by=names]
+    #FV_labDT <- FV_labDT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=names]
+    
+    # very hacky work-around with column indices:
+    ans <- sapply(FV_lab[2:ncol(FV_lab)], function(x) as.numeric(x))
+    FV_lab2 <- data.frame(ans)
+    FV_lab2$pids <-FV_lab$names
+    FV_lab2 <- ddply(FV_lab2, .(pids), function(x) colSums(x[,-ncol(FV_lab2)], na.rm = TRUE))
+    #FV_lab[is.na(FV_lab)]<-0
+    colnames(FV_lab2)<-paste('lab:',colnames(FV_lab2),sep='')
+    # doesn't work: colnames(FV_lab2$lab_pids) <-"pid"
+    colnames(FV_lab2)[1] <-"pid"
     rm(test)
 } else {
     FV_lab <- NULL
 }
 
-featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, observations = FV_ob, drugexposures = FV_de)
+message("vectors flattened")
+
+featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
 return (featureVectors)
+
 }
+
+
 
 #' This function builds a model for the specified feature vector using cases and
 #' controls for a certain outcomeName
@@ -643,7 +610,7 @@ return (featureVectors)
 #' }
 #'
 #' @export
-buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS) {
+buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS, saveFolder) {
     feature_vectors <- list()
 
     featuresets=1
@@ -664,26 +631,38 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         featuresets = featuresets+1
     }
 
+    message("features given name tags")
     #Merge all dataframes/Feature vectors for the different sources and have a big list of them
     pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
 
-    #Get selection of FV we wnat
+    message("features merged")
+    
+    #Get selection of FV we want
+    # i.e., remove pid column from analysis
     ppv_set<-pp_total[1:nrow(pp_total),2:ncol(pp_total)]
     #Convert features to boolean or leave as frequency
     if (tolower(c(flags$features_mode[1])) == 'boolean') {
         ppv_set[ppv_set > 0] <- 1  #
     }
 
-    labels <- pp_total$pid %in% cases
-    mode(labels) <- "integer"
+    #labels <- pp_total$pid %in% cases
+    cases_pids <- sapply(cases_pids[[1]], function(z) as.character(z))
+    controls_pids <- sapply(controls_pids[[1]], function(z) as.character(z))
+    labels <- pp_total$pid %in% cases_pids
+    
+    # Not sure why we need to do this conversion
+    labels <- replace(labels, labels==0, 'F')
+    labels <-replace(labels, labels==1, 'T')
+        # works with labels=1 or labels='1'
 
-    replace(labels, labels==0, 'F')
-    replace(labels, labels==1, 'T')
-
+    # Add labels to last column of feature vector
     ppv_set[,paste(outcomeNameS)] <- labels
 
+    # Get feature labels 
     predictorsNames <- names(ppv_set)[names(ppv_set) != outcomeNameS]
 
+    message("Class labels applied to feature vectors")
+    
     if (flags$model[1]=='LASSO') {
         ################################################
         # glmnet LASSO                                ##
@@ -694,18 +673,40 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         trainDF <- ppv_set[ splitIndex,]
         testDF  <- ppv_set[-splitIndex,]
         # create caret trainControl object to control the number of cross-validations performed
-        objControl <- trainControl(method='cv', number=5, returnResamp='none')
+        objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE)
+        
+        message("Model about to be built")
+        
         # run model
-        objModel <- train(trainDF[,predictorsNames], trainDF[,outcomeNameS], method='glmnet',  metric = "RMSE", trControl=objControl)
+        #objModel <- train(trainDF[,predictorsNames], trainDF[,outcomeNameS], method='glmnet',  metric = "RMSE", trControl=objControl)
+        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainDF[,outcomeNameS]), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
+              # RMSE doesn't make sense for classification; must make y a factor
+        
+        message("Model built")
+        
         # get predictions on your testing data
-        predictions <- predict(object=objModel, testDF[,predictorsNames])
-        auc <- roc(testDF[,outcomeNameS], predictions)
+        #testlabels <- testDF[,outcomeNameS]
+        #testlabels[testlabels=='F'] <-0
+        #testlabels[testlabels=='T'] <-1
+        testlabels <- testDF[,outcomeNameS]
+        #predictions <- predict(object=objModel, testDF[,predictorsNames])
+        predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
+
+        modelPerfSummary <- confusionMatrix(predictions, testlabels)
+        
+        probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
+        #auc <- roc(testlabels, probPreds)
+        
+        message("Model evaluation performed")
+        
         ###### Model Ouputs to file #############
-        sink(paste('LASSO output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
+        sink(paste(saveFolder, 'LASSO output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
         cat(paste('Results for LASSO Model for-',outcomeNameS,' using ',as.character(nCases),' Cases and ',as.character(nControls),' Controls. \n\n',sep=''))
         cat("\nModel Summary \n \n")
         # find out variable importance
         print(summary(objModel))
+        # print model performance
+        print(modelPerfSummary)
         # find out model details
         cat("\nModel Details \n \n")
         print(objModel)
@@ -719,4 +720,138 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
     return (modelReturns)
 }
 
+
+
+
+
+#' This function returns the concept terms corresponding to an input set of concept
+#' IDs.  
+#'
+#' @description This function returns the concept terms corresponding to an input set of concept
+#' IDs.  
+#'
+#' @param connection    The connection to the database server.
+#' @param schema        The database schema being used
+#' @param dbms          The target DBMS for SQL to be rendered in.
+#' @param model         The model object; will be used to extract top-ranking features
+#' @param numFeats      The number of features you'd like returned
+#'
+#' @details This function returns the concept terms corresponding to an input set of concept
+#' IDs.  Use case: to investigate highly-ranked features from classification model
+#'
+#' @return A list of concept terms and concept ids, corresponding to the IDs of interest
+#'
+#' @examples \dontrun{
+#'
+#'  high_ranking_concepts <- conceptDecoder(connection, schema, dbms, model, 20)
+#'
+#' }
+#'
+#' @export
+conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
+  
+  # get model rankings
+  modelRankDetails <- varImp(model, scale=F, top=20)
+  featImps <- modelRankDetails$importance
+  ids <-row.names(featImps)
+
+  # put data into df
+  featImpDF <- data.frame(type=sapply(ids, function(x) unlist(strsplit(x, ":"))[1]), ids=sapply(ids, function(x) unlist(strsplit(x, ":"))[2]), importance=featImps$Overall, absImportance=abs(featImps$Overall))
+  
+  # sort by abs value
+  featImpDF <- featImpDF[with(featImpDF, order(-absImportance)), ]
+  
+  # return selection
+  selection <- featImpDF[1:numFeats,]
+  selection$rank <- c(1:numFeats)
+  
+  # make sql query
+  #concepts <- sapply(featCodesN, function(x) executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE concept_id=",x,";", sep=""),dbms))  # for debugging to check ids are correct
+  concepts <- sapply(selection$ids, function(x) executeSQL(connection, schema, paste("SELECT concept_name FROM @cdmSchema.concept WHERE concept_id=",x,";", sep=""),dbms))
+  
+  # add concepts to output
+  selection$concepts <- as.character(concepts)
+  
+  return (selection)
+}
+
+
+
+
+
+
+
+#' This function returns the predictions for a set of gold-standard patients, based on the trained model
+#'
+#' @description This function returns the predictions for a set of gold-standard patients, based on the trained model
+#'
+#' @param connection    The connection to the database server.
+#' @param schema        The database schema being used
+#' @param dbms          The target DBMS for SQL to be rendered in.
+#' @param model         The trained model object; will be used to predict for new patients
+#' @param pids          The list of gold-standard patients to evaluate
+#' @param flag          Set of flags from settings.R file; determines which feature sets to include
+#'
+#' @details This function returned predicted classes for the input patient list.  Use case: evaluate trained model on a set of gold-standard patients.  
+#'
+#' @return Predicted classes and their probabilities, for each input patient ID
+#'
+#' @examples \dontrun{
+#'
+#'  gs_predictions <- testModel(connection, schema, dbms, model, pids, flag)
+#'
+#' }
+#'
+#' @export
+testModel <- function(conn, schema, dbms, model, pids, flag) {
+  
+  # get data for all patients
+  dataFtests <- getPatientData(conn, dbms, pids, flag, schema)
+  
+  # get feature vector
+  fv_all<-buildFeatureVector(flag, dataFtests)
+  
+  # get prediction probabilities
+  probPreds <- predict(model, newdata=testDF[,predictorsNames], type='prob')
+  
+}
+
+
+
+
+
+#' This function plots the feature importance weightings
+#'
+#' @description This function plots the feature importance weightings
+#'
+#' @param plotSaveFile        The name of the file to save
+#' @param weightingsDF        Data frame of the weightings with their labels
+#'
+#' @details This function returned predicted classes for the input patient list.  Use case: evaluate trained model on a set of gold-standard patients.  
+#'
+#' @return (none)
+#'
+#' @examples \dontrun{
+#'
+#'  plotFeatWeightings(plotSaveFile, weightingsDF)
+#'
+#' }
+#'
+#' @export
+plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
+  
+  # plot
+  labels.wrap  <- lapply(strwrap(weightingsDF$concept,50,simplify=F),paste,collapse="\n") # word wrap
+  g<-ggplot(weightingsDF, aes(rank, importance))+
+    geom_point(color='firebrick') + 
+    #geom_bar(stat='identity', color="firebrick")+
+    labs(x='', y="Feature Importance" , title=paste("Feature Importance for",studyName)) +
+    scale_x_discrete(labels=labels.wrap) +
+    theme(axis.text.x = element_text(labels.wrap, size=3, angle=90)) +
+    #theme(axis.text.y = element_text(size=10))
+    coord_flip()
+  g
+  ggsave(plotSaveFile, width = 16, height = 9, dpi = 120)
+
+}
 

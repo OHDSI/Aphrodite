@@ -46,20 +46,20 @@ port <- "5432"
 ### Aphrodite package variables ###
 ###################################
 
-studyName <-'MI'   #String for saving objects prefix
-outcomeName <- 'MI' #String for model objects prefix
-nCases = 20 # Number of patients to use as cases
-nControls = 20 #Number of patients to use as controls
+studyName <-'FH_test'   #String for saving objects prefix
+outcomeName <- 'FH_test' #String for model objects prefix
+nCases = 100 # Number of patients to use as cases
+nControls = 100 #Number of patients to use as controls
 
 ### CONCEPT to build a Phenotype for ###
-aphrodite_concept_name <- "myocardial infarction"
+aphrodite_concept_name <- "familial hypercholesterolemia"
 
 #### Flags ###
 flag <- data.frame(drugexposures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE)
 flag$drugexposures[1]=1   #Use drug_exposures as features  (1 yes, 0 no)
 flag$observations[1]=1    #Use observations as features  (1 yes, 0 no)
 flag$visits[1]=1          #Use visits () as features  (1 yes, 0 no)
-flag$labs[1]=1            #Use labs as features  (1 yes, 0 no)
+flag$labs[1]=0            #Use labs as features  (1 yes, 0 no)
 
 ### Save intermediate Results Flag ###
 saveALLresults=1   # There is a cleaning function to remove all intermediate results
