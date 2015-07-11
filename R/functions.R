@@ -814,6 +814,8 @@ testModel <- function(conn, schema, dbms, model, pids, flag) {
   # get prediction probabilities
   probPreds <- predict(model, newdata=testDF[,predictorsNames], type='prob')
   
+  return(probPreds)
+  
 }
 
 
@@ -854,4 +856,7 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
   ggsave(plotSaveFile, width = 16, height = 9, dpi = 120)
 
 }
+
+
+
 
