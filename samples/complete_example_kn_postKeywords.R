@@ -40,6 +40,7 @@ library(caret)
 library(pROC)
 library(DatabaseConnector)
 library(ggplot2)
+library(data.table)
 
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
@@ -48,8 +49,10 @@ source("R/settings_knTesting_FH.R")   #Load your settings.R  - usually found in 
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
-connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
-conn <- connect(connectionDetails)
+if (connNeeded) {
+  connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
+  conn <- connect(connectionDetails)
+}
 
 
 # --------------------------------------------------------------------------------------------
@@ -147,7 +150,6 @@ message("Feature vector built")
 # Step 5 - Build Model
 # --------------------------------------------------------------------------------------------
 #colnames(fv_all[[3]])[1] <- "pid"
-stop
 
 if(loadModel) {
   # load saved model

@@ -89,6 +89,7 @@ saveALLresults=1   # There is a cleaning function to remove all intermediate res
 saveFolder = "/home/kniehaus/Intermediate_data/"
 
 # Variables to specify which steps still need to be run, if going from saved data
+connNeeded=0  #1=connection to database is needed
 loadCases=1   # 1=load list of cases/controls from saved file; 0=perform processing to obtain this list
 loadPtData=1    # 1=load lists of pt data from saved file; 0=perform processing to obtain this list
 loadFeatVector=0   # 1=load feature vector of pt data from saved file; 0=perform processing to obtain this vector

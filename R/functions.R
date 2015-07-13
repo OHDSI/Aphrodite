@@ -467,6 +467,43 @@ patientData <- list(drugExposures = patientFeatures_drugexposures_df, observatio
 return (patientData)
 }
 
+
+#' This function builds a feature vector for a specific subset of features
+#'
+#' @description This function builds a feature vector for a specific subset of features, A.
+#' Returns a patient feature vector (for A specific feature set).
+#'
+#' @param featuresType         A set of patient data in the form of TODO 
+#'
+#' @details This function flattens the combined patient feature data for a given feature set
+#' into a single matrix, in the form of TODO
+#'
+#' @return An data frame of (pts) x (features of type A)
+#'
+#' @examples \dontrun{
+#'
+#'  FV_converted<-convertFeatVecPortion(featuresType)
+#'
+#' }
+#'
+#' @export
+convertFeatVecPortion <- function (featuresType) {
+  
+#FV <- cbind(names=t(t(c(sapply(featuresType,rownames)))), rbind.fill(featuresType))
+featuresType_wNames <- lapply(featuresType, function(x) {x$pid <- rownames(x); x})
+#message("finished names")
+FV_DT <- rbindlist(featuresType_wNames, use.names = TRUE, fill=TRUE)
+#message("finished binding")
+FV_DT <- FV_DT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=pid]
+#message("finished Na removal")
+FV <- as.data.frame(FV_DT)
+#message("changed to DF")
+colnames(FV)<-paste('obs:',colnames(FV),sep='')
+#colnames(FV)[1]<-"pid"
+return (FV)
+}
+
+
 #' This function builds a feature vector using raw patient data
 #'
 #' @description This function builds a feature vector using raw patient data.
@@ -515,34 +552,32 @@ else {
  
 #We now flatten the vectors
 if (flags$observations[1]) {
-    test<-featuresOB
-    FV_ob <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-    FV_ob <- ddply(FV_ob, .(names), function(x) colSums(x[,-1], na.rm = TRUE))
-    colnames(FV_ob)<-paste('obs:',colnames(FV_ob),sep='')
-    colnames(FV_ob)[1]<-"pid"
-    rm(test)
+    FV_ob <-convertFeatVecPortion(featuresOB)
 } else { 
     FV_ob <- NULL
 }
 
 if (flags$visits[1]) {
-    test<-featuresVISIT
-    FV_v <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-    FV_v <- ddply(FV_v, .(names), function(x) colSums(x[,-1], na.rm = TRUE))
-    colnames(FV_v)<-paste('visit:',colnames(FV_v),sep='')
-    colnames(FV_v)[1]<-"pid"
-    rm(test)
+#     test<-featuresVISIT
+#     FV_v <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
+#     FV_v <- ddply(FV_v, .(names), function(x) colSums(x[,-1], na.rm = TRUE))
+#     colnames(FV_v)<-paste('visit:',colnames(FV_v),sep='')
+#     colnames(FV_v)[1]<-"pid"
+#     rm(test)
+      FV_v <-convertFeatVecPortion(featuresVISIT)
 } else {
     FV_v <- NULL
 }
 
 if (flags$drugexposures[1]) {
-    test<-featuresDE
-    FV_de <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-    FV_de <- ddply(FV_de, .(names), function(x) colSums(x[,-1], na.rm = TRUE))
-    colnames(FV_de)<-paste('drugexp:',colnames(FV_de),sep='')
-    colnames(FV_de)[1]<-"pid"
-    rm(test)
+#     test<-featuresDE
+#     FV_de <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
+#     FV_de <- ddply(FV_de, .(names), function(x) colSums(x[,-1], na.rm = TRUE))
+#     colnames(FV_de)<-paste('drugexp:',colnames(FV_de),sep='')
+#     colnames(FV_de)[1]<-"pid"
+#     rm(test)
+      FV_de <-convertFeatVecPortion(featuresDE)
+    
 } else {
     FV_de <- NULL
 }
@@ -555,17 +590,6 @@ if (flags$labs[1]) {
     FV_labDT <- FV_labDT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=names]
     FV_lab2 <- as.data.frame(FV_labDT)
     colnames(FV_lab2)[1]<-"pid"
-    rm(test)
-    
-    # very hacky work-around with column indices:
-#     ans <- sapply(FV_lab[2:ncol(FV_lab)], function(x) as.numeric(x))
-#     FV_lab2 <- data.frame(ans)
-#     FV_lab2$pids <-FV_lab$names
-#     FV_lab2 <- ddply(FV_lab2, .(pids), function(x) colSums(x[,-ncol(FV_lab2)], na.rm = TRUE))
-#     #FV_lab[is.na(FV_lab)]<-0
-#     colnames(FV_lab2)<-paste('lab:',colnames(FV_lab2),sep='')
-#     # doesn't work: colnames(FV_lab2$lab_pids) <-"pid"
-#     colnames(FV_lab2)[1] <-"pid"
     rm(test)
 } else {
     FV_lab <- NULL
