@@ -30,6 +30,7 @@
 ###         Settings.R - Modify only when building a new phenotype                 ###
 ######################################################################################
 
+
 ### Connection Variables ###
 
 cdmSchema = "ohdsiv5"
@@ -42,14 +43,16 @@ pw <- "achilles"
 server <- "localhost/jmbanda"
 port <- "5432"
 
+
+
 ###################################
 ### Aphrodite package variables ###
 ###################################
 
-studyName <-'FH_test'   #String for saving objects prefix
-outcomeName <- 'FH_test' #String for model objects prefix
-nCases = 750 # Number of patients to use as cases
-nControls = 750 #Number of patients to use as controls
+studyName <-'FH_test500'   #String for saving objects prefix
+outcomeName <- 'FH_test500' #String for model objects prefix
+nCases = 500 # Number of patients to use as cases
+nControls = 500 #Number of patients to use as controls
 
 ### CONCEPT to build a Phenotype for ###
 aphrodite_concept_name <- "familial hypercholesterolemia"
@@ -59,10 +62,7 @@ flag <- data.frame(drugexposures= integer(1), observations= integer(1),visits=in
 flag$drugexposures[1]=1   #Use drug_exposures as features  (1 yes, 0 no)
 flag$observations[1]=1    #Use observations as features  (1 yes, 0 no)
 flag$visits[1]=1          #Use visits () as features  (1 yes, 0 no)
-flag$labs[1]=0           #Use labs as features  (1 yes, 0 no)
-
-### Save intermediate Results Flag ###
-saveALLresults=1   # There is a cleaning function to remove all intermediate results
+flag$labs[1]=1           #Use labs as features  (1 yes, 0 no)
 
 ### Type of model to build  ###
 flag$model[1] <-'LASSO' # Available types: LASSO - more will be added in the future
@@ -78,3 +78,23 @@ numFeats <- 20
 ### Predictions file - This is only needed when you are testing a built model. ###
 ##################################################################################
 toPredict <- "/home/kniehaus/Intermediate_data/FH_GS_phenotype_pids.csv"
+
+
+###################################
+### Stage of analysis ###
+###################################
+
+### Save intermediate Results Flag ###
+saveALLresults=1   # There is a cleaning function to remove all intermediate results
+saveFolder = "/home/kniehaus/Intermediate_data/"
+
+# Variables to specify which steps still need to be run, if going from saved data
+loadCases=1   # 1=load list of cases/controls from saved file; 0=perform processing to obtain this list
+loadPtData=1    # 1=load lists of pt data from saved file; 0=perform processing to obtain this list
+loadFeatVector=0   # 1=load feature vector of pt data from saved file; 0=perform processing to obtain this vector
+loadModel=0       # 1=load model from saved file; 0=perform training for model
+loadWeightings=0    # 1=load feature weightings from saved file; 0=perform processing to obtain weightings DF
+
+
+
+

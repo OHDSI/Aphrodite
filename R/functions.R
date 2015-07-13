@@ -550,26 +550,28 @@ if (flags$drugexposures[1]) {
 if (flags$labs[1]) {
     test<-featuresLABS
     FV_lab <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-    # Not sure why this isn't working:
-    #FV_labDT <- data.table(FV_lab)
-    #FV_labDT <- FV_labDT[, lapply(.SD as.numeric), by=names]
-    #FV_labDT <- FV_labDT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=names]
+    FV_labDT <- data.table(FV_lab)
+    FV_labDT <- FV_labDT[, lapply(.SD, as.numeric), by=names]
+    FV_labDT <- FV_labDT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=names]
+    FV_lab2 <- as.data.frame(FV_labDT)
+    colnames(FV_lab2)[1]<-"pid"
+    rm(test)
     
     # very hacky work-around with column indices:
-    ans <- sapply(FV_lab[2:ncol(FV_lab)], function(x) as.numeric(x))
-    FV_lab2 <- data.frame(ans)
-    FV_lab2$pids <-FV_lab$names
-    FV_lab2 <- ddply(FV_lab2, .(pids), function(x) colSums(x[,-ncol(FV_lab2)], na.rm = TRUE))
-    #FV_lab[is.na(FV_lab)]<-0
-    colnames(FV_lab2)<-paste('lab:',colnames(FV_lab2),sep='')
-    # doesn't work: colnames(FV_lab2$lab_pids) <-"pid"
-    colnames(FV_lab2)[1] <-"pid"
+#     ans <- sapply(FV_lab[2:ncol(FV_lab)], function(x) as.numeric(x))
+#     FV_lab2 <- data.frame(ans)
+#     FV_lab2$pids <-FV_lab$names
+#     FV_lab2 <- ddply(FV_lab2, .(pids), function(x) colSums(x[,-ncol(FV_lab2)], na.rm = TRUE))
+#     #FV_lab[is.na(FV_lab)]<-0
+#     colnames(FV_lab2)<-paste('lab:',colnames(FV_lab2),sep='')
+#     # doesn't work: colnames(FV_lab2$lab_pids) <-"pid"
+#     colnames(FV_lab2)[1] <-"pid"
     rm(test)
 } else {
     FV_lab <- NULL
 }
 
-message("vectors flattened")
+message("Vectors flattened")
 
 featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
 return (featureVectors)
@@ -631,11 +633,11 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         featuresets = featuresets+1
     }
 
-    message("features given name tags")
+    message("Features given name tags")
     #Merge all dataframes/Feature vectors for the different sources and have a big list of them
     pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
 
-    message("features merged")
+    message("Features merged")
     
     #Get selection of FV we want
     # i.e., remove pid column from analysis
@@ -651,8 +653,8 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
     labels <- pp_total$pid %in% cases_pids
     
     # Not sure why we need to do this conversion
-    labels <- replace(labels, labels==0, 'F')
-    labels <-replace(labels, labels==1, 'T')
+    #labels <- replace(labels, labels==0, 'F')
+    #labels <-replace(labels, labels==1, 'T')
         # works with labels=1 or labels='1'
 
     # Add labels to last column of feature vector
@@ -845,8 +847,8 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
   # plot
   labels.wrap  <- lapply(strwrap(weightingsDF$concept,50,simplify=F),paste,collapse="\n") # word wrap
   g<-ggplot(weightingsDF, aes(rank, importance))+
-    geom_point(color='firebrick') + 
-    #geom_bar(stat='identity', color="firebrick")+
+    #geom_point(color='firebrick') + 
+    geom_bar(stat='identity', color="firebrick")+
     labs(x='', y="Feature Importance" , title=paste("Feature Importance for",studyName)) +
     scale_x_discrete(labels=labels.wrap) +
     theme(axis.text.x = element_text(labels.wrap, size=3, angle=90)) +
