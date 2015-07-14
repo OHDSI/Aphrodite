@@ -40,12 +40,20 @@ library(caret)
 library(pROC)
 library(DatabaseConnector)
 library(ggplot2)
+
+# Command line argument required: name of settings file 
+# e.g."Aphrodite/R/settings_knTesting_FH.R"
+#args <- commandArgs(trailingOnly = TRUE)
+#message(args)
+
+
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
 
 saveFolder = "/home/kniehaus/Intermediate_data/"
 
-source("R/settings_knTesting_FH.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("R/settings_knTesting_FH_14Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+#source(args[1])
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB

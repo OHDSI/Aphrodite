@@ -203,6 +203,49 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     return(casesANDcontrols_df)
 }
 
+
+
+# #' This function performs some of the work of manipulating the patient data, to be 
+# #' used to buid the feature vector
+# #'
+# #' @description This function performs some of the work of manipulating the extracted 
+# #' patient data; called within the getPatientData function.  
+# #'
+# #' @param tmp_fv    The temporary feature vector extracted from the database
+# #'
+# #' @details Will aggregate data by counts of occurances for each term, puts into 
+# #' a data frame, and cleans up a bit
+# #'
+# #' @return An dataframe containing data of one type (the input type - e.g. labs or 
+# #' drug exposures, etc): dataframe of counts of each observed item
+# #'
+# #' @examples \dontrun{
+# #'
+# #'  fv_df <-getPatientDataCases_Helper(tmp_fv, drug_exposure_id, drug_concept_id, "drug_concept_id", "drug_exposure_id", patient_ids[patientQueue])
+# #'
+# #' }
+# #'
+# #' @export
+# getPatientDataCases_Helper() <- function(tmp_fv, agg1, agg2, title1, title2, pid) {
+#   
+# if (nrow(tmp_fv) >0) { 
+#   # deal with patients with entries
+#   test1<-aggregate( agg1 ~ agg2, tmp_fv, function(x) length(unique(x)))
+#   names(test1)[names(test1)==title1] <- "concept_id"
+#   names(test1)[names(test1)==title2] <- "counts"
+#   test1<-data.frame(t(test1))
+#   colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
+#   test1<-test1[-c(1), , drop=FALSE]
+# } else {  
+#   #deal with patients with no entries
+#   test1 <- data.frame(t(data.frame(x = numeric(0))))
+# }
+# row.names(test1)<-as.character(pid)
+# return (test1)
+# }
+
+
+
 #' This function fetches all the patient data (non-generic) designed to work
 #' when building a model
 #'
@@ -256,26 +299,30 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 
             tmp_fv = executeSQL(connection, schema, paste("SELECT drug_exposure_id, person_id, drug_concept_id, drug_exposure_start_date, drug_type_concept_id, stop_reason FROM @cdmSchema.drug_exposure WHERE person_id=",as.character(patient_ids[patientQueue])," AND drug_exposure_start_date >='",as.character(dateFrom),"';",sep=''),dbms)
 
-            if (nrow(tmp_fv) >0) { #deal with patients with no entries
+            #fv_DF <- getPatientDataCases_Helper(tmp_fv, drug_exposure_id, drug_concept_id, "drug_concept_id", "drug_exposure_id", patient_ids[patientQueue])
+            if (nrow(tmp_fv) >0) { 
+              #deal with patients with entries
                 test1<-aggregate( drug_exposure_id ~ drug_concept_id, tmp_fv, function(x) length(unique(x)))
                 names(test1)[names(test1)=="drug_concept_id"] <- "concept_id"
                 names(test1)[names(test1)=="drug_exposure_id"] <- "counts"
                 test1<-data.frame(t(test1))
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
                 test1<-test1[-c(1), , drop=FALSE]
-            } else {
+            } else {  
+              #deal with patients with no entries
                 test1 <- data.frame(t(data.frame(x = numeric(0))))
             }
             row.names(test1)<-as.character(patient_ids[patientQueue])
             patientFeatures_drugexposures_df[[patientQueue]]<-test1   #Assign the already transformed FV
-            rm('test1')
-            rm('tmp_fv')
+             rm('test1')
+             rm('tmp_fv')
         }
         if (flags$observations[1]) {
 
             tmp_fv = executeSQL(connection, schema, paste("SELECT observation_id, person_id, observation_concept_id, observation_date, observation_type_concept_id FROM @cdmSchema.observation WHERE person_id=",as.character(patient_ids[patientQueue])," AND observation_date>='", as.character(dateFrom),  "' AND qualifier_concept_id = 0;",sep=''), dbms)
 
-            if (nrow(tmp_fv) >0) { #deal with patients with no entries
+            if (nrow(tmp_fv) >0) { 
+              # deal with patients with data
                 test1<-aggregate( observation_id ~ observation_concept_id, tmp_fv, function(x) length(unique(x)))
                 names(test1)[names(test1)=="observation_concept_id"] <- "concept_id"
                 names(test1)[names(test1)=="observation_id"] <- "counts"
@@ -284,6 +331,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
                 test1<-test1[-c(1), , drop=FALSE]
             } else {
+              #deal with patients with no entries
                 #create an empty dataset
                 test1 <- data.frame(t(data.frame(x = numeric(0))))
             }
@@ -297,7 +345,8 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 
             tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.visit_start_date >='",as.character(dateFrom), "' AND A.person_id=",as.character(patient_ids[patientQueue]),";",sep=''), dbms)
 
-            if (nrow(tmp_fv) >0) { #deal with patients with no entries
+            if (nrow(tmp_fv) >0) { 
+              # deal with patients with data
                 test1<-aggregate( condition_occurrence_id ~ condition_concept_id, tmp_fv, function(x) length(unique(x)))
                 names(test1)[names(test1)=="condition_concept_id"] <- "concept_id"
                 names(test1)[names(test1)=="condition_occurrence_id"] <- "counts"
@@ -306,6 +355,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
                 test1<-test1[-c(1), , drop=FALSE]
             } else {
+              #deal with patients with no entries
                 #create an empty dataset
                 test1 <- data.frame(t(data.frame(x = numeric(0))))
             }
@@ -487,20 +537,23 @@ return (patientData)
 #' }
 #'
 #' @export
-convertFeatVecPortion <- function (featuresType) {
+convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
   
-#FV <- cbind(names=t(t(c(sapply(featuresType,rownames)))), rbind.fill(featuresType))
-featuresType_wNames <- lapply(featuresType, function(x) {x$pid <- rownames(x); x})
-#message("finished names")
-FV_DT <- rbindlist(featuresType_wNames, use.names = TRUE, fill=TRUE)
-#message("finished binding")
-FV_DT <- FV_DT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=pid]
-#message("finished Na removal")
-FV <- as.data.frame(FV_DT)
-#message("changed to DF")
-colnames(FV)<-paste('obs:',colnames(FV),sep='')
-#colnames(FV)[1]<-"pid"
-return (FV)
+  #old call: FV <- cbind(names=t(t(c(sapply(featuresType,rownames)))), rbind.fill(featuresType))
+  featuresType_wNames <- lapply(featuresType, function(x) {x$pid <- rownames(x); x})
+  FV_DT <- rbindlist(featuresType_wNames, use.names = TRUE, fill=TRUE)
+  
+  if (labIndic) {
+    # labs are not all in numeric form, so must convert
+    FV_DT <- FV_DT[, lapply(.SD, as.numeric), by=pid]
+  }
+  
+  FV_DT <- FV_DT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=pid]
+  FV <- as.data.frame(FV_DT)
+  colnames(FV)<-paste(key,colnames(FV),sep='')
+  # in doing this have re-written pid column as key:pid, so change to just pid
+  colnames(FV)[grep(paste(key, "pid"), colnames(FV))]<-"pid"
+  return (FV)
 }
 
 
@@ -540,9 +593,9 @@ if (missing(controlsS)) {
     featuresOB<-casesS$observations
     featuresVISIT<-casesS$visits
     featuresLABS <- casesS$labs
-
 }
 else {
+  # If cases and controls
     featuresDE<-append(casesS$drugExposures,controlsS$drugExposures)
     featuresOB<-append(casesS$observations,controlsS$observations)
     featuresVISIT<-append(casesS$visits,controlsS$visits)
@@ -552,52 +605,37 @@ else {
  
 #We now flatten the vectors
 if (flags$observations[1]) {
-    FV_ob <-convertFeatVecPortion(featuresOB)
+    FV_ob <-convertFeatVecPortion(featuresOB, 'obs:')
 } else { 
     FV_ob <- NULL
 }
+message("Obs done")
 
 if (flags$visits[1]) {
-#     test<-featuresVISIT
-#     FV_v <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-#     FV_v <- ddply(FV_v, .(names), function(x) colSums(x[,-1], na.rm = TRUE))
-#     colnames(FV_v)<-paste('visit:',colnames(FV_v),sep='')
-#     colnames(FV_v)[1]<-"pid"
-#     rm(test)
-      FV_v <-convertFeatVecPortion(featuresVISIT)
+      FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:')
 } else {
     FV_v <- NULL
 }
+message("Visits done")
 
 if (flags$drugexposures[1]) {
-#     test<-featuresDE
-#     FV_de <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-#     FV_de <- ddply(FV_de, .(names), function(x) colSums(x[,-1], na.rm = TRUE))
-#     colnames(FV_de)<-paste('drugexp:',colnames(FV_de),sep='')
-#     colnames(FV_de)[1]<-"pid"
-#     rm(test)
-      FV_de <-convertFeatVecPortion(featuresDE)
-    
+      FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:')
 } else {
     FV_de <- NULL
 }
+message("Drugs done")
 
 if (flags$labs[1]) {
-    test<-featuresLABS
-    FV_lab <- cbind(names=t(t(c(sapply(test,rownames)))), rbind.fill(test))
-    FV_labDT <- data.table(FV_lab)
-    FV_labDT <- FV_labDT[, lapply(.SD, as.numeric), by=names]
-    FV_labDT <- FV_labDT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=names]
-    FV_lab2 <- as.data.frame(FV_labDT)
-    colnames(FV_lab2)[1]<-"pid"
-    rm(test)
+    FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', labIndic=1)
 } else {
     FV_lab <- NULL
 }
+message("Labs done")
 
-message("Vectors flattened")
 
 featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
+
+message("Vectors flattened")
 return (featureVectors)
 
 }
@@ -637,6 +675,7 @@ return (featureVectors)
 #'
 #' @export
 buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS, saveFolder) {
+    # Merge all dataframes/Feature vectors for the different sources and have a big list of them
     feature_vectors <- list()
 
     featuresets=1
@@ -656,38 +695,57 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         feature_vectors[[featuresets]]<-featureVector$labs
         featuresets = featuresets+1
     }
-
-    message("Features given name tags")
-    #Merge all dataframes/Feature vectors for the different sources and have a big list of them
+    
     pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
 
     message("Features merged")
     
-    #Get selection of FV we want
-    # i.e., remove pid column from analysis
-    ppv_set<-pp_total[1:nrow(pp_total),2:ncol(pp_total)]
-    #Convert features to boolean or leave as frequency
-    if (tolower(c(flags$features_mode[1])) == 'boolean') {
-        ppv_set[ppv_set > 0] <- 1  #
-    }
+#     #Get selection of FV we want
+#     # i.e., remove pid column from analysis
+#     ppv_set<-pp_total[1:nrow(pp_total),2:ncol(pp_total)]
+#     #Convert features to boolean or leave as frequency
+#     if (tolower(c(flags$features_mode[1])) == 'boolean') {
+#         ppv_set[ppv_set > 0] <- 1  #
+#     }
 
-    #labels <- pp_total$pid %in% cases
+    # Get class labels based on pids
     cases_pids <- sapply(cases_pids[[1]], function(z) as.character(z))
     controls_pids <- sapply(controls_pids[[1]], function(z) as.character(z))
     labels <- pp_total$pid %in% cases_pids
     
-    # Not sure why we need to do this conversion
-    #labels <- replace(labels, labels==0, 'F')
-    #labels <-replace(labels, labels==1, 'T')
-        # works with labels=1 or labels='1'
+    # Need to rename so that R will be happy with class labels
+    labels <- replace(labels, labels==FALSE, 'F')
+    labels <-replace(labels, labels==TRUE, 'T')
 
     # Add labels to last column of feature vector
-    ppv_set[,paste(outcomeNameS)] <- labels
+    #ppv_set$outcomeNameS <- labels
+    pp_total$Class_labels <- labels
+    #pp_total$outcomeNameS <- labels
 
-    # Get feature labels 
-    predictorsNames <- names(ppv_set)[names(ppv_set) != outcomeNameS]
+    # Get feature names 
+    #predictorsNames <- names(ppv_set)[names(ppv_set) != outcomeNameS]
+    charCols <- c("Class_labels", "pid")
+    #charCols <- c(outcomeNameS, "pid")
+    predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
 
-    message("Class labels applied to feature vectors")
+    #ppv_set <- pp_total[,predictorsNames]
+
+    if (tolower(c(flags$features_mode[1])) == 'boolean') {
+          ppv_set <- pp_total[,predictorsNames]
+          ppv_set[ppv_set > 0] <- 1  #
+          ppv_set$Class_labels <- labels
+          #ppv_set$outcomeNameS <- labels
+          ppv_set$pid <- pp_total$pid
+          pp_total <- ppv_set
+          message("Features converted to boolean, as set in options")
+    }
+    else if (tolower(c(flags$features_mode[1])) == 'frequency') {
+      message("Features kept as frequencies, as set in options")
+    }
+    else {
+      message("Check options settings for how to define features.  Continuing with default (frequency counts)")
+    }
+    
     
     if (flags$model[1]=='LASSO') {
         ################################################
@@ -695,9 +753,12 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         ################################################
         # split data into training and testing chunks
         set.seed(567)
-        splitIndex <- createDataPartition(ppv_set[,outcomeNameS], p = .75, list = FALSE, times = 1)
-        trainDF <- ppv_set[ splitIndex,]
-        testDF  <- ppv_set[-splitIndex,]
+        #splitIndex <- createDataPartition(ppv_set[,outcomeNameS], p = .75, list = FALSE, times = 1)
+        splitIndex <- createDataPartition(labels, p = .75, list = FALSE, times = 1)
+        trainDF <- pp_total[ splitIndex,]
+        testDF  <- pp_total[-splitIndex,]
+        trainLabels <- labels[splitIndex]
+        testLabels <- labels[-splitIndex]
         # create caret trainControl object to control the number of cross-validations performed
         objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE)
         
@@ -705,8 +766,9 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         
         # run model
         #objModel <- train(trainDF[,predictorsNames], trainDF[,outcomeNameS], method='glmnet',  metric = "RMSE", trControl=objControl)
-        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainDF[,outcomeNameS]), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
-              # RMSE doesn't make sense for classification; must make y a factor
+        #objModel <- train(x=trainDF[,predictorsNames], y=factor(trainDF[,outcomeNameS]), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
+        # RMSE doesn't make sense for classification; must make y a factor
+        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
         
         message("Model built")
         
@@ -714,14 +776,14 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         #testlabels <- testDF[,outcomeNameS]
         #testlabels[testlabels=='F'] <-0
         #testlabels[testlabels=='T'] <-1
-        testlabels <- testDF[,outcomeNameS]
+        #testlabels <- testDF[,outcomeNameS]
         #predictions <- predict(object=objModel, testDF[,predictorsNames])
         predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
 
-        modelPerfSummary <- confusionMatrix(predictions, testlabels)
+        modelPerfSummary <- confusionMatrix(predictions, testLabels)
         
         probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
-        #auc <- roc(testlabels, probPreds)
+        auc <- roc(testLabels, probPreds[,1])
         
         message("Model evaluation performed")
         
@@ -742,7 +804,7 @@ buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcome
         cat(format(Sys.time(), "%a %b %d %Y %X"))
         sink()
     }
-    modelReturns <- list(model = objModel, predictors = predictorsNames)
+    modelReturns <- list(model = objModel, predictors = predictorsNames, auc)
     return (modelReturns)
 }
 
@@ -871,8 +933,9 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
   # plot
   labels.wrap  <- lapply(strwrap(weightingsDF$concept,50,simplify=F),paste,collapse="\n") # word wrap
   g<-ggplot(weightingsDF, aes(rank, importance))+
-    #geom_point(color='firebrick') + 
-    geom_bar(stat='identity', color="firebrick")+
+    geom_point(color='firebrick') + 
+    # TODO: why is bar (below) not working?
+    #geom_bar(stat='identity', color="firebrick")+
     labs(x='', y="Feature Importance" , title=paste("Feature Importance for",studyName)) +
     scale_x_discrete(labels=labels.wrap) +
     theme(axis.text.x = element_text(labels.wrap, size=3, angle=90)) +

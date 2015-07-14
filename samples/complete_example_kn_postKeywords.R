@@ -41,11 +41,16 @@ library(pROC)
 library(DatabaseConnector)
 library(ggplot2)
 library(data.table)
+library(RJDBC)
 
+# Command line argument required: name of settings file 
+# e.g."Aphrodite/R/settings_knTesting_FH.R"
+#args <- commandArgs(trailingOnly = TRUE)
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
-source("R/settings_knTesting_FH.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("R/settings_knTesting_FH_14Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+#source(args[1])
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
@@ -63,7 +68,7 @@ if (connNeeded) {
 keywordList_FF <- read.table(paste(saveFolder,studyName,'_keywordlist_ed.tsv',sep=''), sep="\t", header=FALSE)
 ignoreList_FF <- read.table(paste(saveFolder,studyName, '_ignorelist_ed.tsv',sep=''), sep="\t", header=FALSE)
 
-message("keyword lists re-loaded")
+message("Keyword lists re-loaded")
 
 # --------------------------------------------------------------------------------------------
 # STEP 2 - Get cases, controls
@@ -136,15 +141,17 @@ if (loadPtData) {
 if (loadFeatVector) {
   # load vector from file - loads as fv_all
   load(file=paste(saveFolder,studyName,"_FULL_FV_CASES_",as.character(nCases),"_CONTROLS_",as.character(nControls),".Rda",sep=''))
+  message("Feature vector loaded")
 } else {
   # create feature vector
   fv_all<-buildFeatureVector(flag, dataFcases,dataFcontrols)
   if (saveALLresults) {
       save(fv_all,file=paste(saveFolder,studyName,"_FULL_FV_CASES_",as.character(nCases),"_CONTROLS_",as.character(nControls),".Rda",sep=''))
   }
+  message("Feature vector built")
 }
 
-message("Feature vector built")
+
 
 # --------------------------------------------------------------------------------------------
 # Step 5 - Build Model
@@ -155,27 +162,31 @@ if(loadModel) {
   # load saved model
   # loads model
   #e.g.load('~/Intermediate_data/LASSO MODEL FILE FOR FH_test.Rda')
-  load(file=paste(saveFolder,saveModel,'_model_', flag$model[1], '_', outcomeName,".Rda",sep=''))
+  load(file=paste(saveFolder,studyName,'_model_', flag$model[1], '_', outcomeName,".Rda",sep=''))
   
   # loads predictors
-  load(file=paste(saveFolder,saveModel,'_predictors_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
+  load(file=paste(saveFolder,studyName,'_predictors_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
+  
+  message("Model loaded")
   
 } else {
   # create model
-  model_predictors <- buildModel(flag, cases, controls, fv_all, outcomeName)
+  model_predictors <- buildModel(flag, cases, controls, fv_all, outcomeName, saveFolder)
   
   message("Model built")
   
   ###### Save Model to file #############
   model<-model_predictors$model
   predictors<-model_predictors$predictors
+  auc <- model_predictors$auc
   
   # new_coef <- coef(model$finalModel, model$bestTune$lambda)
   # b <- model$finalModel$beta
   
-  save(model, file=paste(saveFolder,saveModel,'_model_', flag$model[1], '_', outcomeName,".Rda",sep=''))
+  save(model, file=paste(saveFolder,studyName,'_model_', flag$model[1], '_', outcomeName,".Rda",sep=''))
   #Save Predictors for model
-  save(predictors, file=paste(saveFolder,saveModel,'_predictors_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
+  save(predictors, file=paste(saveFolder,studyName,'_predictors_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
+  save(auc, file=paste(saveFolder,studyName,'_auc_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
 }
 
 
