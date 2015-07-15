@@ -62,8 +62,8 @@ if (connNeeded) {
 
 # Load Keyword list after editing
 # [Some terms have multi-word descriptions, which confuses the "\t" separator.  Some might have commas too, though, so using ~]
-keywordList_FF <- read.table(paste(saveFolder,studyName,'_keywordlist_ed.tsv',sep=''), sep="~", header=FALSE)
-ignoreList_FF <- read.table(paste(saveFolder,studyName, '_ignorelist_ed.tsv',sep=''), sep="~", header=FALSE)
+keywordList_FF <- read.table(paste(saveFolder,studyName,'_keywordlist_ed.csv',sep=''), sep=",", header=FALSE)
+ignoreList_FF <- read.table(paste(saveFolder,studyName, '_ignorelist_ed.csv',sep=''), sep=",", header=FALSE)
 
 message("Keyword lists re-loaded")
 
@@ -122,7 +122,7 @@ if (loadPtData) {
   }
   
   #Get Controls
-  dataFcontrols <- getPatientData(conn, dbms, controls, flag , cdmSchema)
+  dataFcontrols <- getPatientData(conn, dbms, controls, flag, cdmSchema)
   if (saveALLresults) {
       save(dataFcontrols,file=controlDataFN)
   }
@@ -220,11 +220,15 @@ plotFeatWeightings(plotSaveFile, weightingsDF)
 # dbDisconnect(con);
 # write.table(test_pids, file=paste('~/Intermediate_data/FH_GS_phenotype_pids.csv',sep=''), quote=FALSE, sep=',', row.names = FALSE, col.names = FALSE)
 
+# ---Not yet functional---
+#test_pids <- read.csv(toPredict)
+#test_data <- testModel(conn, cdmSchema, dbms, model, test_pids[[1]], flag, predictors)
 
-test_pids <- read.csv(toPredict)
-testProbs <- testModel(conn, cdmSchema, dbms, model, test_pids, flag)
+#testProbs <- testModel(conn, cdmSchema, dbms, model, test_pids[[1]], flag, predictors)
 
-
+# save test data
+#save(test_data, file=paste(saveFolder, studyName, "_testProbs_", numFeats, ".Rda",sep=''))
+# ---Not yet functional---
 
 # CLEAN UP
 

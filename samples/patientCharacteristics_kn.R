@@ -18,7 +18,7 @@ library(data.table)
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
-source("R/settings_knTesting_FH_14Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("R/settings_knTesting_FH_14Jul2015_MI.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 source("/home/kniehaus/Aphrodite/samples/patientCharacteristics_functions.R")
 source("/home/kniehaus/knCode_FH/multiplot.R")

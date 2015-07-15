@@ -41,10 +41,6 @@ library(pROC)
 library(DatabaseConnector)
 library(ggplot2)
 
-# Command line argument required: name of settings file 
-# e.g."Aphrodite/R/settings_knTesting_FH.R"
-#args <- commandArgs(trailingOnly = TRUE)
-#message(args)
 
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
@@ -52,8 +48,7 @@ setwd(folder)
 
 saveFolder = "/home/kniehaus/Intermediate_data/"
 
-source("R/settings_knTesting_FH_14Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
-#source(args[1])
+source("R/settings_knTesting_FH_14Jul2015_v2.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
@@ -66,8 +61,8 @@ conn <- connect(connectionDetails)
 # --------------------------------------------------------------------------------------------
 wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 
-write.table(wordLists$keywordlist_ALL, file=paste(saveFolder,studyName,'_keywordlist.tsv',sep=''), quote=FALSE, sep='~', row.names = FALSE, col.names = FALSE)
-write.table(wordLists$ignorelist_ALL, file=paste(saveFolder,studyName, '_ignorelist.tsv',sep=''), quote=FALSE, sep='~', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$keywordlist_ALL, file=paste(saveFolder,studyName,'_keywordlist.csv',sep=''), quote=FALSE, sep=',', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$ignorelist_ALL, file=paste(saveFolder,studyName, '_ignorelist.csv',sep=''), quote=FALSE, sep=',', row.names = FALSE, col.names = FALSE)
 
 message(paste("keywordlist.tsv and ignorelist.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
 message("Please edit these files and save as keywordlist_ed.tsv and ignorelist_ed.tsv")

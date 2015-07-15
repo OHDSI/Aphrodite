@@ -49,14 +49,14 @@ port <- "5432"
 ### Aphrodite package variables ###
 ###################################
 
-studyName <-'FH_test200'   #String for saving objects prefix
-outcomeName <- 'FH_test200' #String for model objects prefix
+studyName <-'MI_test200'   #String for saving objects prefix
+outcomeName <- 'MI_test200' #String for model objects prefix
 nCases = 200 # Number of patients to use as cases
 nControls = 200 #Number of patients to use as controls
 
 ### CONCEPT to build a Phenotype for ###
-#aphrodite_concept_name <- "myocardial infarction"
-aphrodite_concept_name <- "familial hypercholesterolemia"
+aphrodite_concept_name <- "myocardial infarction"
+#aphrodite_concept_name <- "familial hypercholesterolemia"
 
 #### Flags ###
 flag <- data.frame(drugexposures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE)
@@ -78,7 +78,7 @@ numFeats <- 20
 ##################################################################################
 ### Predictions file - This is only needed when you are testing a built model. ###
 ##################################################################################
-toPredict <- "/home/kniehaus/Intermediate_data/FH_GS_phenotype_pids.csv"
+#toPredict <- "/home/kniehaus/Intermediate_data/FH_GS_phenotype_pids.csv"
 
 
 ###################################
@@ -87,15 +87,15 @@ toPredict <- "/home/kniehaus/Intermediate_data/FH_GS_phenotype_pids.csv"
 
 ### Save intermediate Results Flag ###
 saveALLresults=1   # There is a cleaning function to remove all intermediate results
-saveFolder = "/home/kniehaus/Intermediate_data/FH_test200_2/"
+saveFolder = "/home/kniehaus/Intermediate_data/MI_test200/"
 
 # Variables to specify which steps still need to be run, if going from saved data
 connNeeded=1  #1=connection to database is needed; 0=no connection needed
 loadCases=1   # 1=load list of cases/controls from saved file; 0=perform processing to obtain this list
 loadPtData=1    # 1=load lists of pt data from saved file; 0=perform processing to obtain this list
 loadFeatVector=1   # 1=load feature vector of pt data from saved file; 0=perform processing to obtain this vector
-loadModel=1      # 1=load model from saved file; 0=perform training for model
-loadWeightings=1    # 1=load feature weightings from saved file; 0=perform processing to obtain weightings DF
+loadModel=1       # 1=load model from saved file; 0=perform training for model
+loadWeightings=0    # 1=load feature weightings from saved file; 0=perform processing to obtain weightings DF
 
 
 

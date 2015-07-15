@@ -187,7 +187,7 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     casesANDcontrols_df<- list()
 
     #Get all case patients in the cohort - from observations table
-    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(includeConceptlist,collapse=","),",",paste(excludeConceptlist,collapse=","),") AND qualifier_concept_id=0;",sep=''),dbms)
+    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(includeConceptlist,collapse=","),",", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
 
     #Get all case patients in the cohort -  from condition occurrence
     patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","),",",paste(excludeConceptlist,collapse=","),");",sep=''),dbms)
@@ -246,7 +246,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         patients_list_df<- list()
 
         #TODO: change to exclude ignores
-        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
+        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
 
         #TODO: change to exclude ignores
         patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
@@ -363,7 +363,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 #'
 #' @param connection    The connection to the database server.
 #' @param dbms          The target DBMS for SQL to be rendered in.
-#' @param patient_ids   The list of case patient id's to extract data from.
+#' @param patient_ids   The list of case patient id's to extract data from - NOT a data.frame.
 #' @param flags         The R dataframe that contains all feature/model flags
 #'   specified in settings.R.
 #' @param schema        The database schema being used.
@@ -580,7 +580,6 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
       FV_ob <- NULL
   }
   
-  
   if (flags$visits[1]) {
         FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:')
         message("Visits done")
@@ -588,14 +587,12 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
       FV_v <- NULL
   }
   
-  
   if (flags$drugexposures[1]) {
         FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:')
         message("Drugs done")
   } else {
       FV_de <- NULL
   }
-  
   
   if (flags$labs[1]) {
       FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', labIndic=1)
@@ -625,7 +622,7 @@ return (featureVectors)
 #' @param featureVector List of flattened feature vectors returned by buildFeatureVector
 #'   function.
 #' @param outcomeNameS  String description of the outcome for which the model is
-#'   being built
+#'   being built [Not actually needed]
 #'
 #' @details This function builds a feature vector by concatenating all of the available datasets. 
 #' If binary features are specified in the settings, this conversion is made. 
@@ -844,50 +841,6 @@ conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
   selection$concepts <- as.character(concepts)
   
   return (selection)
-}
-
-
-
-
-
-
-
-#' This function returns the predictions for a set of gold-standard patients, based on the trained model
-#'
-#' @description This function returns the predictions for a set of gold-standard patients, based on the trained model
-#'
-#' @param connection    The connection to the database server.
-#' @param schema        The database schema being used
-#' @param dbms          The target DBMS for SQL to be rendered in.
-#' @param model         The trained model object; will be used to predict for new patients
-#' @param pids          The list of gold-standard patients to evaluate
-#' @param flag          Set of flags from settings.R file; determines which feature sets to include
-#'
-#' @details This function returned predicted classes for the input patient list.  Use case: evaluate trained model on a set of gold-standard patients.  
-#'
-#' @return Predicted classes and their probabilities, for each input patient ID
-#'
-#' @examples \dontrun{
-#'
-#'  gs_predictions <- testModel(connection, schema, dbms, model, pids, flag)
-#'
-#' }
-#'
-#' @export
-testModel <- function(conn, schema, dbms, model, pids, flag) {
-  #TODO This function is still bug-y!
-  
-  # get data for all patients
-  dataFtests <- getPatientData(conn, dbms, pids, flag, schema)
-  
-  # get feature vector
-  fv_all<-buildFeatureVector(flag, dataFtests)
-  
-  # get prediction probabilities
-  probPreds <- predict(model, newdata=testDF[,predictorsNames], type='prob')
-  
-  return(probPreds)
-  
 }
 
 
