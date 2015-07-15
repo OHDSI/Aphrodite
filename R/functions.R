@@ -196,53 +196,12 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     casesANDcontrols_df[[1]] <- do.call(rbind, patients_list_df)
 
     #Get Controls
-    #ONLYE GET A REDUCED SET ( NOT IN the full cohort of possible patients)
+    #ONLY GET A REDUCED SET ( NOT IN the full cohort of possible patients)
     casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN
                                                                      (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp LIMIT ",controlSize,";" ,sep=''),dbms)
 
     return(casesANDcontrols_df)
 }
-
-
-
-# #' This function performs some of the work of manipulating the patient data, to be 
-# #' used to buid the feature vector
-# #'
-# #' @description This function performs some of the work of manipulating the extracted 
-# #' patient data; called within the getPatientData function.  
-# #'
-# #' @param tmp_fv    The temporary feature vector extracted from the database
-# #'
-# #' @details Will aggregate data by counts of occurances for each term, puts into 
-# #' a data frame, and cleans up a bit
-# #'
-# #' @return An dataframe containing data of one type (the input type - e.g. labs or 
-# #' drug exposures, etc): dataframe of counts of each observed item
-# #'
-# #' @examples \dontrun{
-# #'
-# #'  fv_df <-getPatientDataCases_Helper(tmp_fv, drug_exposure_id, drug_concept_id, "drug_concept_id", "drug_exposure_id", patient_ids[patientQueue])
-# #'
-# #' }
-# #'
-# #' @export
-# getPatientDataCases_Helper() <- function(tmp_fv, agg1, agg2, title1, title2, pid) {
-#   
-# if (nrow(tmp_fv) >0) { 
-#   # deal with patients with entries
-#   test1<-aggregate( agg1 ~ agg2, tmp_fv, function(x) length(unique(x)))
-#   names(test1)[names(test1)==title1] <- "concept_id"
-#   names(test1)[names(test1)==title2] <- "counts"
-#   test1<-data.frame(t(test1))
-#   colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
-#   test1<-test1[-c(1), , drop=FALSE]
-# } else {  
-#   #deal with patients with no entries
-#   test1 <- data.frame(t(data.frame(x = numeric(0))))
-# }
-# row.names(test1)<-as.character(pid)
-# return (test1)
-# }
 
 
 
@@ -286,8 +245,10 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     for (patientQueue in 1:(length(patient_ids))) {
         patients_list_df<- list()
 
+        #TODO: change to exclude ignores
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
 
+        #TODO: change to exclude ignores
         patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
@@ -369,6 +330,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
             tmp_fv = executeSQL(connection, schema, paste("SELECT measurement_id, person_id, measurement_date, measurement_type_concept_id, value_as_number, value_as_concept_id FROM @cdmSchema.measurement WHERE person_id=",as.character(patient_ids[patientQueue])," AND measurement_date >='",as.character(dateFrom),"';",sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { #deal with patients with no entries
+                # TODO: figure this bit out exactly
                 #Remove lab values that did not map properly
                 tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="0"),]
                 #Remove lab values that have a measurement of NONE
@@ -520,26 +482,31 @@ return (patientData)
 
 #' This function builds a feature vector for a specific subset of features
 #'
-#' @description This function builds a feature vector for a specific subset of features, A.
-#' Returns a patient feature vector (for A specific feature set).
+#' @description This function builds a feature matrix for a specific subset of features, e.g. labs/visits/observations/drug exposures.
+#' Returns a feature matrix with all features from all patients included.
 #'
-#' @param featuresType         A set of patient data in the form of TODO 
+#' @param featuresType         A set of patient data in the form of a list of data frames.  Each data frame contains a pid to label the patient, the names of the features that the patient had present, and the frequency counts of these features in his/her record 
+#' @param key                  String descriptor of type of feature (e.g. "obs:" or "visit:"). This will be used to label the feature
+#' @param labIndic=0           Whether this is for a lab feature.  If so, must be converted from factor to numeric.  Default is 0=no conversion required; 1=conversion required. 
 #'
-#' @details This function flattens the combined patient feature data for a given feature set
-#' into a single matrix, in the form of TODO
+#' @details This function takes a list of patient data frames as input.  Each patient's data frame contains the features that this patient has present in his/her record. This function flattens this information into the combined feature matrix, with all features (of a certain type - e.g. labs or visits) from all patients included.  Clearly, many patients will not have data for many features; their feature counts for any feature that was not present in their record will be set as 0. 
 #'
-#' @return An data frame of (pts) x (features of type A)
+#' @return An data frame of (pts) x (features of input type)
 #'
 #' @examples \dontrun{
 #'
-#'  FV_converted<-convertFeatVecPortion(featuresType)
+#'  FV_converted<-convertFeatVecPortion(featuresType, 'obs:')
+#'  
+#'  #OR
+#'
+#'  FV_converted<-convertFeatVecPortion(featuresType, 'labs:', labIndic=1)
 #'
 #' }
 #'
 #' @export
 convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
   
-  #old call: FV <- cbind(names=t(t(c(sapply(featuresType,rownames)))), rbind.fill(featuresType))
+  # combine all features into a single data table, with missing features replaced with NA
   featuresType_wNames <- lapply(featuresType, function(x) {x$pid <- rownames(x); x})
   FV_DT <- rbindlist(featuresType_wNames, use.names = TRUE, fill=TRUE)
   
@@ -548,11 +515,14 @@ convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
     FV_DT <- FV_DT[, lapply(.SD, as.numeric), by=pid]
   }
   
+  # replace NAs with 0
   FV_DT <- FV_DT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=pid]
   FV <- as.data.frame(FV_DT)
+  # add description of type of feature (key)
   colnames(FV)<-paste(key,colnames(FV),sep='')
   # in doing this have re-written pid column as key:pid, so change to just pid
-  colnames(FV)[grep(paste(key, "pid"), colnames(FV))]<-"pid"
+  #colnames(FV)[grep(paste(key, "pid"), colnames(FV))]<-"pid"
+  colnames(FV)[1]<-'pid'
   return (FV)
 }
 
@@ -572,7 +542,7 @@ convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
 #' optionally flat two sources of patient data (cases and controls)
 #'
 #' @return An object containing the flattened feature vectors for all given
-#' feature sets.
+#' feature sets. Of form: list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
 #'
 #' @examples \dontrun{
 #'
@@ -587,57 +557,153 @@ convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
 #' @export
 buildFeatureVector <- function (flags, casesS, controlsS) {
 
-if (missing(controlsS)) {
-    #This only has cases
-    featuresDE<-casesS$drugExposures
-    featuresOB<-casesS$observations
-    featuresVISIT<-casesS$visits
-    featuresLABS <- casesS$labs
-}
-else {
-  # If cases and controls
-    featuresDE<-append(casesS$drugExposures,controlsS$drugExposures)
-    featuresOB<-append(casesS$observations,controlsS$observations)
-    featuresVISIT<-append(casesS$visits,controlsS$visits)
-    featuresLABS <- append(casesS$labs, controlsS$labs)
-    message("Features successfully loaded")
-}
- 
-#We now flatten the vectors
-if (flags$observations[1]) {
-    FV_ob <-convertFeatVecPortion(featuresOB, 'obs:')
-} else { 
-    FV_ob <- NULL
-}
-message("Obs done")
-
-if (flags$visits[1]) {
-      FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:')
-} else {
-    FV_v <- NULL
-}
-message("Visits done")
-
-if (flags$drugexposures[1]) {
-      FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:')
-} else {
-    FV_de <- NULL
-}
-message("Drugs done")
-
-if (flags$labs[1]) {
-    FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', labIndic=1)
-} else {
-    FV_lab <- NULL
-}
-message("Labs done")
-
-
-featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
-
-message("Vectors flattened")
+  if (missing(controlsS)) {
+      #This only has cases
+      featuresDE<-casesS$drugExposures
+      featuresOB<-casesS$observations
+      featuresVISIT<-casesS$visits
+      featuresLABS <- casesS$labs
+  }
+  else {
+    # If cases and controls
+      featuresDE<-append(casesS$drugExposures,controlsS$drugExposures)
+      featuresOB<-append(casesS$observations,controlsS$observations)
+      featuresVISIT<-append(casesS$visits,controlsS$visits)
+      featuresLABS <- append(casesS$labs, controlsS$labs)
+  }
+   
+  #We now flatten the vectors
+  if (flags$observations[1]) {
+      FV_ob <-convertFeatVecPortion(featuresOB, 'obs:')
+      message("Obs done")
+  } else { 
+      FV_ob <- NULL
+  }
+  
+  
+  if (flags$visits[1]) {
+        FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:')
+        message("Visits done")
+  } else {
+      FV_v <- NULL
+  }
+  
+  
+  if (flags$drugexposures[1]) {
+        FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:')
+        message("Drugs done")
+  } else {
+      FV_de <- NULL
+  }
+  
+  
+  if (flags$labs[1]) {
+      FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', labIndic=1)
+      message("Labs done")
+  } else {
+      FV_lab <- NULL
+  }
+  
+  featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
+  
+  message("Vectors flattened")
 return (featureVectors)
 
+}
+
+
+#' This function combines all of the desired feature types into one single feature vector
+#'
+#' @description This function combines all of the desired feature types into one single feature vector.  This feature vector is ready to be used for training
+#'
+#' @param flags         The R dataframe that contains all feature/model flags
+#'   specified in settings.R.
+#' @param cases_pids    List of patient_id's considered cases (for labeling
+#'   purposes)
+#' @param controls_pids List of patient_id's considered controls (for labeling
+#'   purposes)
+#' @param featureVector List of flattened feature vectors returned by buildFeatureVector
+#'   function.
+#' @param outcomeNameS  String description of the outcome for which the model is
+#'   being built
+#'
+#' @details This function builds a feature vector by concatenating all of the available datasets. 
+#' If binary features are specified in the settings, this conversion is made. 
+#' The cases_pids and control_pids are patient_id's used for the labeling of
+#' the testing and training sets.
+#'
+#' @return fv_all - The combined feature vector (n patients x n features).  The columns are: pid column, predictorNames, outcomeName
+#'
+#' @examples \dontrun{
+#'
+#'  fv_full_data <- combineFeatureVectors(flag, cases, controls, fv_all, outcomeName)
+#'
+#' }
+#'
+#' @export
+combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS) {
+  # Merge all dataframes/Feature vectors for the different sources and have a big list of them
+  feature_vectors <- list()
+  
+  featuresets=1
+  if (flags$drugexposures[1]) {
+    feature_vectors[[featuresets]]<-featureVector$drugexposures
+    featuresets = featuresets+1
+  }
+  if (flags$visits[1]) {
+    feature_vectors[[featuresets]]<-featureVector$visits
+    featuresets = featuresets+1
+  }
+  if (flags$observations[1]) {
+    feature_vectors[[featuresets]]<-featureVector$observations
+    featuresets = featuresets+1
+  }
+  if (flags$labs[1]) {
+    feature_vectors[[featuresets]]<-featureVector$labs
+    featuresets = featuresets+1
+  }
+  
+  pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
+  
+  message("Features merged")
+  
+  # Get class labels based on pids
+  cases_pids <- sapply(cases_pids[[1]], function(z) as.character(z))
+  controls_pids <- sapply(controls_pids[[1]], function(z) as.character(z))
+  labels <- pp_total$pid %in% cases_pids
+  
+  # Need to rename so that R will be happy with class labels
+  labels <- replace(labels, labels==FALSE, 'F')
+  labels <-replace(labels, labels==TRUE, 'T')
+  
+  # Add labels to last column of feature vector
+  #[for some reason it doesn't seem to like outcomeNameS here]
+  pp_total$Class_labels <- labels
+  
+  # Get feature names 
+  charCols <- c("Class_labels", "pid")
+  predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
+  
+  # Convert to boolean if needed
+  if (tolower(c(flags$features_mode[1])) == 'boolean') {
+    #TODO write more cleanly
+    ppv_set <- pp_total[,predictorsNames]
+    ppv_set[ppv_set > 0] <- 1  #
+    ppv_set$Class_labels <- labels
+    ppv_set$pid <- pp_total$pid
+    pp_total <- ppv_set
+    message("Features converted to boolean, as set in options")
+  }
+  else if (tolower(c(flags$features_mode[1])) == 'frequency') {
+    message("Features kept as frequencies, as set in options")
+  }
+  else {
+    message("Check options settings for how to define features.  Continuing with default (frequency counts)")
+  }
+  
+  output <- pp_total
+  
+  return (pp_total)
 }
 
 
@@ -651,141 +717,58 @@ return (featureVectors)
 #'
 #' @param flags         The R dataframe that contains all feature/model flags
 #'   specified in settings.R.
-#' @param cases_pids    List of patient_id's considered cases (for labeling
-#'   purposes)
-#' @param controls_pids List of patient_id's considered controls (for labeling
-#'   purposes)
-#' @param featureVector Flattened feature vector returned by buildFeatureVector
-#'   function.
+#' @param featureVector Flattened feature vector returned by combineFeatureVectors
+#'   function, with labeled cases and controls.  Assumed to have one column named "Class_labels" 
+#'   and one named "pid"
 #' @param outcomeNameS  String description of the outcome for which the model is
 #'   being built
 #'
 #' @details This function builds a model for the specified outcomeName. The
 #' model is specified in the flags dataframe (currently only supports LASSO).
-#' The cases_pids and controld_pids are patient_id's used for the labeling of
-#' the testing and training sets.
 #'
 #' @return An transferable caret Model object
 #'
 #' @examples \dontrun{
 #'
-#'  model_predictors <- buildModel(flag, cases, controls, fv_all, outcomeName)
+#'  model_predictors <- buildModel(flag, fv_all, predictorsNames, outcomeName, saveFolder)
 #'
 #' }
 #'
 #' @export
-buildModel <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS, saveFolder) {
-    # Merge all dataframes/Feature vectors for the different sources and have a big list of them
-    feature_vectors <- list()
-
-    featuresets=1
-    if (flags$drugexposures[1]) {
-        feature_vectors[[featuresets]]<-featureVector$drugexposures
-        featuresets = featuresets+1
-    }
-    if (flags$visits[1]) {
-        feature_vectors[[featuresets]]<-featureVector$visits
-        featuresets = featuresets+1
-    }
-    if (flags$observations[1]) {
-        feature_vectors[[featuresets]]<-featureVector$observations
-        featuresets = featuresets+1
-    }
-    if (flags$labs[1]) {
-        feature_vectors[[featuresets]]<-featureVector$labs
-        featuresets = featuresets+1
-    }
+buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     
-    pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
-
-    message("Features merged")
-    
-#     #Get selection of FV we want
-#     # i.e., remove pid column from analysis
-#     ppv_set<-pp_total[1:nrow(pp_total),2:ncol(pp_total)]
-#     #Convert features to boolean or leave as frequency
-#     if (tolower(c(flags$features_mode[1])) == 'boolean') {
-#         ppv_set[ppv_set > 0] <- 1  #
-#     }
-
-    # Get class labels based on pids
-    cases_pids <- sapply(cases_pids[[1]], function(z) as.character(z))
-    controls_pids <- sapply(controls_pids[[1]], function(z) as.character(z))
-    labels <- pp_total$pid %in% cases_pids
-    
-    # Need to rename so that R will be happy with class labels
-    labels <- replace(labels, labels==FALSE, 'F')
-    labels <-replace(labels, labels==TRUE, 'T')
-
-    # Add labels to last column of feature vector
-    #ppv_set$outcomeNameS <- labels
-    pp_total$Class_labels <- labels
-    #pp_total$outcomeNameS <- labels
-
-    # Get feature names 
-    #predictorsNames <- names(ppv_set)[names(ppv_set) != outcomeNameS]
+    # Get feature names again 
     charCols <- c("Class_labels", "pid")
-    #charCols <- c(outcomeNameS, "pid")
     predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
-
-    #ppv_set <- pp_total[,predictorsNames]
-
-    if (tolower(c(flags$features_mode[1])) == 'boolean') {
-          ppv_set <- pp_total[,predictorsNames]
-          ppv_set[ppv_set > 0] <- 1  #
-          ppv_set$Class_labels <- labels
-          #ppv_set$outcomeNameS <- labels
-          ppv_set$pid <- pp_total$pid
-          pp_total <- ppv_set
-          message("Features converted to boolean, as set in options")
-    }
-    else if (tolower(c(flags$features_mode[1])) == 'frequency') {
-      message("Features kept as frequencies, as set in options")
-    }
-    else {
-      message("Check options settings for how to define features.  Continuing with default (frequency counts)")
-    }
-    
-    
+  
     if (flags$model[1]=='LASSO') {
         ################################################
         # glmnet LASSO                                ##
         ################################################
         # split data into training and testing chunks
         set.seed(567)
-        #splitIndex <- createDataPartition(ppv_set[,outcomeNameS], p = .75, list = FALSE, times = 1)
-        splitIndex <- createDataPartition(labels, p = .75, list = FALSE, times = 1)
+        splitIndex <- createDataPartition(pp_total$Class_labels, p = .75, list = FALSE, times = 1)
         trainDF <- pp_total[ splitIndex,]
         testDF  <- pp_total[-splitIndex,]
-        trainLabels <- labels[splitIndex]
-        testLabels <- labels[-splitIndex]
+        trainLabels <- pp_total$Class_labels[splitIndex]
+        testLabels <- pp_total$Class_labels[-splitIndex]
         # create caret trainControl object to control the number of cross-validations performed
         objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE)
         
         message("Model about to be built")
         
         # run model
-        #objModel <- train(trainDF[,predictorsNames], trainDF[,outcomeNameS], method='glmnet',  metric = "RMSE", trControl=objControl)
-        #objModel <- train(x=trainDF[,predictorsNames], y=factor(trainDF[,outcomeNameS]), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
-        # RMSE doesn't make sense for classification; must make y a factor
+        #[RMSE doesn't make sense for classification; must make y a factor]
         objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
         
-        message("Model built")
         
-        # get predictions on your testing data
-        #testlabels <- testDF[,outcomeNameS]
-        #testlabels[testlabels=='F'] <-0
-        #testlabels[testlabels=='T'] <-1
-        #testlabels <- testDF[,outcomeNameS]
-        #predictions <- predict(object=objModel, testDF[,predictorsNames])
+        # get predictions on held-out testing data
+        # get prediction classes
         predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
-
         modelPerfSummary <- confusionMatrix(predictions, testLabels)
-        
+        # get probabilities for each class
         probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
         auc <- roc(testLabels, probPreds[,1])
-        
-        message("Model evaluation performed")
         
         ###### Model Ouputs to file #############
         sink(paste(saveFolder, 'LASSO output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
@@ -892,6 +875,7 @@ conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
 #'
 #' @export
 testModel <- function(conn, schema, dbms, model, pids, flag) {
+  #TODO This function is still bug-y!
   
   # get data for all patients
   dataFtests <- getPatientData(conn, dbms, pids, flag, schema)

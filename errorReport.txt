@@ -1,1 +1,47 @@
 DBMS:
+postgresql
+
+Error:
+org.postgresql.util.PSQLException: ERROR: function c(integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer, integer) does not exist
+  Hint: No function matches the given name and argument types. You might need to add explicit type casts.
+  Position: 157
+
+SQL:
+SELECT drug_exposure_id, person_id, drug_concept_id, drug_exposure_start_date, drug_type_concept_id, stop_reason FROM ohdsiv5.drug_exposure WHERE person_id=c(1202574, 1066670, 504960, 432018, 97753, 1149251, 460629, 581668, 225634, 958761, 35324, 529302, 1114240, 447991, 1059781, 1048916, 1055102, 246922, 36071, 1109393, 55193, 1124455, 789072, 783347, 1177505, 237118, 1216700, 592110, 551590, 1191311, 698425, 392510, 716183, 400397, 1234895, 733012, 726139, 820775, 859308, 1153227, 1221782, 826108, 246559, 1159083, 590298, 117791, 541373, 828422, 391627, 319868, 706279, 21138, 458518, 752624);
+
+R version:
+R version 3.1.2 (2014-10-31)
+
+Platform:
+x86_64-redhat-linux-gnu
+
+Attached base packages:
+- grid
+- stats
+- graphics
+- grDevices
+- utils
+- datasets
+- methods
+- base
+
+Other attached packages:
+- dplyr (0.4.2)
+- DatabaseConnector (1.3.0)
+- RJDBC (0.2-5)
+- rJava (0.9-6)
+- DBI (0.3.1)
+- SqlRender (1.1.2)
+- data.table (1.9.4)
+- Aphrodite (1.0)
+- elasticnet (1.1)
+- lars (1.2)
+- glmnet (2.0-2)
+- foreach (1.4.2)
+- Matrix (1.1-4)
+- caret (6.0-47)
+- ggplot2 (1.0.1)
+- lattice (0.20-29)
+- plyr (1.8.3)
+- devtools (1.8.0)
+- pROC (1.8)

@@ -66,8 +66,8 @@ conn <- connect(connectionDetails)
 # --------------------------------------------------------------------------------------------
 wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 
-write.table(wordLists$keywordlist_ALL, file=paste(saveFolder,studyName,'_keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-write.table(wordLists$ignorelist_ALL, file=paste(saveFolder,studyName, '_ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$keywordlist_ALL, file=paste(saveFolder,studyName,'_keywordlist.tsv',sep=''), quote=FALSE, sep='~', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$ignorelist_ALL, file=paste(saveFolder,studyName, '_ignorelist.tsv',sep=''), quote=FALSE, sep='~', row.names = FALSE, col.names = FALSE)
 
 message(paste("keywordlist.tsv and ignorelist.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
 message("Please edit these files and save as keywordlist_ed.tsv and ignorelist_ed.tsv")

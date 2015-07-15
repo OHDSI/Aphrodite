@@ -91,11 +91,11 @@ saveFolder = "/home/kniehaus/Intermediate_data/FH_test200/"
 
 # Variables to specify which steps still need to be run, if going from saved data
 connNeeded=1  #1=connection to database is needed; 0=no connection needed
-loadCases=0   # 1=load list of cases/controls from saved file; 0=perform processing to obtain this list
-loadPtData=0    # 1=load lists of pt data from saved file; 0=perform processing to obtain this list
-loadFeatVector=0   # 1=load feature vector of pt data from saved file; 0=perform processing to obtain this vector
-loadModel=0       # 1=load model from saved file; 0=perform training for model
-loadWeightings=0    # 1=load feature weightings from saved file; 0=perform processing to obtain weightings DF
+loadCases=1   # 1=load list of cases/controls from saved file; 0=perform processing to obtain this list
+loadPtData=1    # 1=load lists of pt data from saved file; 0=perform processing to obtain this list
+loadFeatVector=1   # 1=load feature vector of pt data from saved file; 0=perform processing to obtain this vector
+loadModel=1       # 1=load model from saved file; 0=perform training for model
+loadWeightings=1    # 1=load feature weightings from saved file; 0=perform processing to obtain weightings DF
 
 
 

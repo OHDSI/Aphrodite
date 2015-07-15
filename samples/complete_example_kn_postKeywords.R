@@ -43,14 +43,10 @@ library(ggplot2)
 library(data.table)
 library(RJDBC)
 
-# Command line argument required: name of settings file 
-# e.g."Aphrodite/R/settings_knTesting_FH.R"
-#args <- commandArgs(trailingOnly = TRUE)
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
-source("R/settings_knTesting_FH_14Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
-#source(args[1])
+source("R/settings_knTesting_FH_14Jul2015_v2.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
@@ -65,8 +61,9 @@ if (connNeeded) {
 # --------------------------------------------------------------------------------------------
 
 # Load Keyword list after editing
-keywordList_FF <- read.table(paste(saveFolder,studyName,'_keywordlist_ed.tsv',sep=''), sep="\t", header=FALSE)
-ignoreList_FF <- read.table(paste(saveFolder,studyName, '_ignorelist_ed.tsv',sep=''), sep="\t", header=FALSE)
+# [Some terms have multi-word descriptions, which confuses the "\t" separator.  Some might have commas too, though, so using ~]
+keywordList_FF <- read.table(paste(saveFolder,studyName,'_keywordlist_ed.tsv',sep=''), sep="~", header=FALSE)
+ignoreList_FF <- read.table(paste(saveFolder,studyName, '_ignorelist_ed.tsv',sep=''), sep="~", header=FALSE)
 
 message("Keyword lists re-loaded")
 
@@ -156,22 +153,23 @@ if (loadFeatVector) {
 # --------------------------------------------------------------------------------------------
 # Step 5 - Build Model
 # --------------------------------------------------------------------------------------------
-#colnames(fv_all[[3]])[1] <- "pid"
 
 if(loadModel) {
   # load saved model
   # loads model
-  #e.g.load('~/Intermediate_data/LASSO MODEL FILE FOR FH_test.Rda')
   load(file=paste(saveFolder,studyName,'_model_', flag$model[1], '_', outcomeName,".Rda",sep=''))
-  
   # loads predictors
   load(file=paste(saveFolder,studyName,'_predictors_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
+  # loads full FV
+  # loads as fv_full_data
+  load(file=paste(saveFolder,studyName,'_FV-FINAL_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
   
   message("Model loaded")
   
 } else {
   # create model
-  model_predictors <- buildModel(flag, cases, controls, fv_all, outcomeName, saveFolder)
+  fv_full_data <- combineFeatureVectors(flag, cases, controls, fv_all, outcomeName)
+  model_predictors <- buildModel(flag, fv_full_data, outcomeName, saveFolder)
   
   message("Model built")
   
@@ -180,14 +178,13 @@ if(loadModel) {
   predictors<-model_predictors$predictors
   auc <- model_predictors$auc
   
-  # new_coef <- coef(model$finalModel, model$bestTune$lambda)
-  # b <- model$finalModel$beta
-  
   save(model, file=paste(saveFolder,studyName,'_model_', flag$model[1], '_', outcomeName,".Rda",sep=''))
   #Save Predictors for model
   save(predictors, file=paste(saveFolder,studyName,'_predictors_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
   save(auc, file=paste(saveFolder,studyName,'_auc_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
 }
+  # Save feature vectors
+  save(fv_full_data, file=paste(saveFolder,studyName,'_FV-FINAL_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
 
 
 
@@ -213,7 +210,7 @@ plotFeatWeightings(plotSaveFile, weightingsDF)
 
 # Evaluate for patients who have been gold-standard labeled
 
-# **KEEP BELOW** - code used to get pid list from patient list
+# **FOR REFERENCE** - code used to get pid list from patient list
 # Get pid list
 # Must do from dev2 to get pid list (need to only do once):
 # con = dbConnect(MySQL(), user='kniehaus', password='bmir1234', dbname='user_kniehaus', host='shahlab-db1.stanford.edu')
