@@ -73,7 +73,7 @@ flag$features_mode[1] <- 'frequency'   #Can be Boolean or frequency - boolean on
 plots=1
 
 ### How many features to include in top variables plot
-numFeats <- 20
+numFeats <- 100
 
 ##################################################################################
 ### Predictions file - This is only needed when you are testing a built model. ###
@@ -95,7 +95,7 @@ loadCases=1   # 1=load list of cases/controls from saved file; 0=perform process
 loadPtData=1    # 1=load lists of pt data from saved file; 0=perform processing to obtain this list
 loadFeatVector=1   # 1=load feature vector of pt data from saved file; 0=perform processing to obtain this vector
 loadModel=1      # 1=load model from saved file; 0=perform training for model
-loadWeightings=1    # 1=load feature weightings from saved file; 0=perform processing to obtain weightings DF
+loadWeightings=0    # 1=load feature weightings from saved file; 0=perform processing to obtain weightings DF
 
 
 

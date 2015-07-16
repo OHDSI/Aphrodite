@@ -46,12 +46,11 @@ library(ggplot2)
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
 
-saveFolder = "/home/kniehaus/Intermediate_data/"
-
-source("R/settings_knTesting_FH_14Jul2015_v2.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("/home/kniehaus/Intermediate_data/FH_test200_3/settings_knTesting_FH_15Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
+jdbcDrivers <<- new.env()
 connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
 conn <- connect(connectionDetails)
 
@@ -65,7 +64,7 @@ write.table(wordLists$keywordlist_ALL, file=paste(saveFolder,studyName,'_keyword
 write.table(wordLists$ignorelist_ALL, file=paste(saveFolder,studyName, '_ignorelist.csv',sep=''), quote=FALSE, sep=',', row.names = FALSE, col.names = FALSE)
 
 message(paste("keywordlist.tsv and ignorelist.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
-message("Please edit these files and save as keywordlist_ed.tsv and ignorelist_ed.tsv")
+message("Please edit these files and save as keywordlist_ed.tsv and ignorelist_caseID, ignorelist_features.tsv")
 
 
 # CLEAN UP

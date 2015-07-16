@@ -40,17 +40,17 @@ library(caret)
 library(pROC)
 library(DatabaseConnector)
 library(ggplot2)
-library(data.table)
-library(RJDBC)
+#library(data.table)
 
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
-source("R/settings_knTesting_FH_14Jul2015_v2.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("/home/kniehaus/Intermediate_data/FH_test200_3/settings_knTesting_FH_15Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
 if (connNeeded) {
+  jdbcDrivers <<- new.env()
   connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
   conn <- connect(connectionDetails)
 }
@@ -61,11 +61,15 @@ if (connNeeded) {
 # --------------------------------------------------------------------------------------------
 
 # Load Keyword list after editing
-# [Some terms have multi-word descriptions, which confuses the "\t" separator.  Some might have commas too, though, so using ~]
+# [Some terms have multi-word descriptions, which confuses the "\t" separator.  Some might have commas too; ~ didn't seem to work so back to csv]
 keywordList_FF <- read.table(paste(saveFolder,studyName,'_keywordlist_ed.csv',sep=''), sep=",", header=FALSE)
-ignoreList_FF <- read.table(paste(saveFolder,studyName, '_ignorelist_ed.csv',sep=''), sep=",", header=FALSE)
+# ignoreList_caseID includes the terms to ignore when defining cases
+ignoreList_caseID <- read.table(paste(saveFolder,studyName, '_ignorelist_caseID.csv',sep=''), sep=",", header=FALSE)
+# ignoreList_features includes the terms to ignore as features
+ignoreList_feat <- read.table(paste(saveFolder,studyName, '_ignorelist_features.csv',sep=''), sep=",", header=FALSE)
 
 message("Keyword lists re-loaded")
+
 
 # --------------------------------------------------------------------------------------------
 # STEP 2 - Get cases, controls
@@ -79,7 +83,8 @@ if (loadCases) {
   cases <-read.table(paste(saveFolder,studyName,'_cases.tsv',sep=''))
   controls <- read.table(paste(saveFolder,studyName,'_controls.tsv',sep=''))
 } else {
-  casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), cdmSchema,nCases,nControls)
+  # Need to find cases/controls
+  casesANDcontrolspatient_ids_df<- getdPatientCohort(conn, dbms,as.character(keywordList_FF$V3),as.character(ignoreList_caseID$V3), cdmSchema,nCases,nControls)
   if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
       message("Not enough patients to get the number of cases specified")
       stop
@@ -116,11 +121,12 @@ if (loadPtData) {
 } else {
   # TODO: need to add option to look before dx, too
   # TODO: combine these two into a single function
-  dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema)
+  dataFcases <-getPatientDataCases(conn, dbms, cases$V1, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema)
   if (saveALLresults) {
       save(dataFcases,file=caseDataFN)
   }
   
+  flower
   #Get Controls
   dataFcontrols <- getPatientData(conn, dbms, controls, flag, cdmSchema)
   if (saveALLresults) {
@@ -129,7 +135,7 @@ if (loadPtData) {
   
   message("Cases and controls data extracted")
 }
-
+stop
 # --------------------------------------------------------------------------------------------
 # STEP 4 - Build feature vectors
 # --------------------------------------------------------------------------------------------

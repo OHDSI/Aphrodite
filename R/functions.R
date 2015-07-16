@@ -187,18 +187,19 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     casesANDcontrols_df<- list()
 
     #Get all case patients in the cohort - from observations table
-    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(includeConceptlist,collapse=","),",", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
+    #patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(includeConceptlist,collapse=","),",", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
+    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
 
     #Get all case patients in the cohort -  from condition occurrence
-    patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","),",",paste(excludeConceptlist,collapse=","),");",sep=''),dbms)
+    #patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","),",",paste(excludeConceptlist,collapse=","),");",sep=''),dbms)
+    patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","), ");", sep=''),dbms)
 
     #Merge and get unique number of patients - Cases
     casesANDcontrols_df[[1]] <- do.call(rbind, patients_list_df)
 
     #Get Controls
     #ONLY GET A REDUCED SET ( NOT IN the full cohort of possible patients)
-    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN
-                                                                     (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp LIMIT ",controlSize,";" ,sep=''),dbms)
+    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp LIMIT ",controlSize,";" ,sep=''),dbms)
 
     return(casesANDcontrols_df)
 }
@@ -242,14 +243,19 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
 
+    keepDomains <- c("Condition", "Device", "Drug", "Procedure")
+    # others: "Observation", "Spec Anatomic Site", "Measurement"
+    # most certainly not useful: "Metadata", "Unit", "Meas Value", "Note Type"
+    
     for (patientQueue in 1:(length(patient_ids))) {
         patients_list_df<- list()
 
-        #TODO: change to exclude ignores
-        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
-
-        #TODO: change to exclude ignores
-        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),",",paste(ignores,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+        #NOW: just looks at keywords. TODO: change to exclude ignores
+        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
+        
+        
+        #NOW:just looks at keywords. TODO: change to exclude ignores
+        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
 
@@ -258,9 +264,9 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 
         if (flags$drugexposures[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT drug_exposure_id, person_id, drug_concept_id, drug_exposure_start_date, drug_type_concept_id, stop_reason FROM @cdmSchema.drug_exposure WHERE person_id=",as.character(patient_ids[patientQueue])," AND drug_exposure_start_date >='",as.character(dateFrom),"';",sep=''),dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_exposure_start_date >='",as.character(dateFrom),"'AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id IN ('Condition', 'Device', 'Drug', 'Procedure');",sep=''), dbms)
+            # A.qualifier_concept_id = 0 AND
 
-            #fv_DF <- getPatientDataCases_Helper(tmp_fv, drug_exposure_id, drug_concept_id, "drug_concept_id", "drug_exposure_id", patient_ids[patientQueue])
             if (nrow(tmp_fv) >0) { 
               #deal with patients with entries
                 test1<-aggregate( drug_exposure_id ~ drug_concept_id, tmp_fv, function(x) length(unique(x)))
@@ -280,7 +286,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         }
         if (flags$observations[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT observation_id, person_id, observation_concept_id, observation_date, observation_type_concept_id FROM @cdmSchema.observation WHERE person_id=",as.character(patient_ids[patientQueue])," AND observation_date>='", as.character(dateFrom),  "' AND qualifier_concept_id = 0;",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id, A.observation_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.observation_date>='", as.character(dateFrom),  "' AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id IN ('Condition', 'Device', 'Drug', 'Procedure');",sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { 
               # deal with patients with data
@@ -304,7 +310,8 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         }
         if (flags$visits[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.visit_start_date >='",as.character(dateFrom), "' AND A.person_id=",as.character(patient_ids[patientQueue]),";",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.visit_start_date >='",as.character(dateFrom), "' AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL AND C.domain_id IN ('Condition', 'Device', 'Drug', 'Procedure');",sep=''), dbms)
+    
 
             if (nrow(tmp_fv) >0) { 
               # deal with patients with data
@@ -756,7 +763,8 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
         
         # run model
         #[RMSE doesn't make sense for classification; must make y a factor]
-        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
+        #objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet",  preProcess=NULL, metric = "Accuracy", trControl=objControl, tuneGrid=NULL)
+        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet",  preProcess=NULL, metric = "ROC", trControl=objControl, tuneGrid=NULL)
         
         
         # get predictions on held-out testing data
