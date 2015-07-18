@@ -45,7 +45,7 @@ library(ggplot2)
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
-source("/home/kniehaus/Intermediate_data/FH_test200_3/settings_knTesting_FH_15Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("/home/kniehaus/Intermediate_data/MI_test200_2/settings_knTesting_FH_16Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
@@ -115,20 +115,21 @@ if (loadCases) {
 caseDataFN <-paste(saveFolder,studyName,"_RAW_FV_CASES_",as.character(nCases),".Rda",sep='')
 controlDataFN <-paste(saveFolder,studyName,"_RAW_FV_CONTROLS_",as.character(nControls),".Rda",sep='')
 
+
 if (loadPtData) {
   load(caseDataFN)
   load(controlDataFN)
 } else {
   # TODO: need to add option to look before dx, too
   # TODO: combine these two into a single function
-  dataFcases <-getPatientDataCases(conn, dbms, cases$V1, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema)
+  dataFcases <-getPatientDataCases(conn, dbms, cases$V1, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema, timeWindowOpt)
   if (saveALLresults) {
       save(dataFcases,file=caseDataFN)
   }
   
-  flower
+  
   #Get Controls
-  dataFcontrols <- getPatientData(conn, dbms, controls, flag, cdmSchema)
+  dataFcontrols <- getPatientData(conn, dbms, controls$V1, as.character(keywordList_FF$V3), flag, cdmSchema)
   if (saveALLresults) {
       save(dataFcontrols,file=controlDataFN)
   }
@@ -139,7 +140,7 @@ stop
 # --------------------------------------------------------------------------------------------
 # STEP 4 - Build feature vectors
 # --------------------------------------------------------------------------------------------
-# Very long step!!
+
 
 if (loadFeatVector) {
   # load vector from file - loads as fv_all
@@ -174,7 +175,7 @@ if(loadModel) {
   
 } else {
   # create model
-  fv_full_data <- combineFeatureVectors(flag, cases, controls, fv_all, outcomeName)
+  fv_full_data <- combineFeatureVectors(flag, cases, controls, fv_all, outcomeName, threshCutoff)
   model_predictors <- buildModel(flag, fv_full_data, outcomeName, saveFolder)
   
   message("Model built")
