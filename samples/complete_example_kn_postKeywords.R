@@ -40,12 +40,12 @@ library(caret)
 library(pROC)
 library(DatabaseConnector)
 library(ggplot2)
-#library(data.table)
+library(data.table)
 
 
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
-source("/home/kniehaus/Intermediate_data/MI_test200_2/settings_knTesting_FH_16Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("/home/kniehaus/Intermediate_data/FH_test300/settings_knTesting_FH_19Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB

@@ -2,10 +2,11 @@ DBMS:
 postgresql
 
 Error:
-org.postgresql.util.PSQLException: This connection has been closed.
+org.postgresql.util.PSQLException: ERROR: column "metadata" does not exist
+  Position: 412
 
 SQL:
-SELECT concept_name FROM ohdsiv5.concept WHERE concept_id=4173573;
+SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason FROM ohdsiv5.drug_exposure as A, ohdsiv5.concept as B WHERE A.person_id=352629 AND A.drug_exposure_start_date >='1995-01-01' AND A.drug_exposure_start_date <='2005-01-01' AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (Metadata,Unit,'Meas Value','Note Type') AND B.concept_id NOT IN (4029259,4029305,4031945,4079885,4220010,4295608,4295609,4298010,35305818,36416638,40388229,45439843,45459846,45486714);
 
 R version:
 R version 3.1.2 (2014-10-31)
@@ -14,33 +15,24 @@ Platform:
 x86_64-redhat-linux-gnu
 
 Attached base packages:
-- grid
+- methods
 - stats
 - graphics
 - grDevices
 - utils
 - datasets
-- methods
 - base
 
 Other attached packages:
-- randomForest (4.6-10)
-- dplyr (0.4.2)
+- data.table (1.9.4)
 - DatabaseConnector (1.3.0)
 - RJDBC (0.2-5)
 - rJava (0.9-6)
 - DBI (0.3.1)
-- SqlRender (1.1.2)
-- data.table (1.9.4)
-- Aphrodite (1.0)
-- elasticnet (1.1)
-- lars (1.2)
-- glmnet (2.0-2)
-- foreach (1.4.2)
-- Matrix (1.1-4)
+- pROC (1.8)
 - caret (6.0-47)
 - ggplot2 (1.0.1)
 - lattice (0.20-29)
 - plyr (1.8.3)
-- devtools (1.8.0)
-- pROC (1.8)
+- SqlRender (1.1.2)
+- Aphrodite (1.0)

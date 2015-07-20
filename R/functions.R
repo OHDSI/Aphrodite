@@ -247,6 +247,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     #keepDomains: c("Condition", "Device", "Drug", "Procedure")
     # others: "Observation", "Spec Anatomic Site", "Measurement"
     # most certainly not useful: "Metadata", "Unit", "Meas Value", "Note Type"
+    removeDomains <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")
     
     for (patientQueue in 1:(length(patient_ids))) {
         patients_list_df<- list()
@@ -281,12 +282,15 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         } else {
           timeDiff <- (as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365
         }
+        if (timeDiff==0) {
+          timeDiff <- defaultTime
+        }
         
         #Using the data extract all patient data for the cases
 
         if (flags$drugexposures[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_exposure_start_date >='",as.character(dateStart),"' AND A.drug_exposure_start_date <='",as.character(dateEnd), "' AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id IN ('Condition', 'Device', 'Drug', 'Procedure') AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_exposure_start_date >='",as.character(dateStart),"' AND A.drug_exposure_start_date <='",as.character(dateEnd), "' AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             # A.qualifier_concept_id = 0 AND
 
             if (nrow(tmp_fv) >0) { 
@@ -311,7 +315,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         }
         if (flags$observations[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id, A.observation_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.observation_date>='", as.character(dateStart),  "' AND A.observation_date<='", as.character(dateEnd),  "' AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id IN ('Condition', 'Device', 'Drug', 'Procedure') AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id, A.observation_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.observation_date>='", as.character(dateStart),  "' AND A.observation_date<='", as.character(dateEnd),  "' AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { 
               # deal with patients with data
@@ -337,7 +341,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         }
         if (flags$visits[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.visit_start_date >='",as.character(dateStart), "'AND A.visit_start_date <='",as.character(dateEnd), "' AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL AND C.domain_id IN ('Condition', 'Device', 'Drug', 'Procedure') AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.visit_start_date >='",as.character(dateStart), "'AND A.visit_start_date <='",as.character(dateEnd), "' AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
     
 
             if (nrow(tmp_fv) >0) { 
@@ -427,7 +431,6 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
     for (patientQueue in 1:(length(patient_ids))) {
-        message(patientQueue)
         patients_list_df<- list()
         # get patient dates
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
@@ -463,7 +466,6 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
                 names(test1)[names(test1)=="drug_exposure_id"] <- "counts"
                 # normalize data by length of follow-up time
                 test1$counts <- test1$counts/timeDiff
-                message(max(test1$counts))
                 # change columns to rows
                 test1<-data.frame(t(test1))
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
@@ -488,7 +490,6 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
                 names(test1)[names(test1)=="observation_id"] <- "counts"
                 # normalize data by length of follow-up time
                 test1$counts <- test1$counts/timeDiff
-                message(max(test1$counts))
                 #change colums to rows
                 test1<-data.frame(t(test1))
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
@@ -515,7 +516,6 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
                 names(test1)[names(test1)=="condition_occurrence_id"] <- "counts"
                 # normalize data by length of follow-up time
                 test1$counts <- test1$counts/timeDiff
-                message(max(test1$counts))
                 #change columns to rows
                 test1<-data.frame(t(test1))
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
@@ -542,7 +542,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
                 tmp_fv$type_valueM <- paste(tmp_fv$measurement_type_concept_id, tmp_fv$value_as_concept_id, sep=":")
                 test1<-aggregate( measurement_id ~ type_valueM, tmp_fv, function(x) length(unique(x)))
                 # normalize data by length of follow-up time
-                #TODO  not sure if this index below (counts) is correct!
+                #TODO  not sure if this index below (counts) is correct! - IT IS NOT!
                 test1$counts <- test1$counts/timeDiff
                 test1<-data.frame(t(test1))
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
@@ -830,55 +830,57 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     # Get feature names again 
     charCols <- c("Class_labels", "pid")
     predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
-  
+
+    ################################################
+    # build model                                ##
+    ################################################
+    # split data into training and testing chunks
+    set.seed(567)
+    splitIndex <- createDataPartition(pp_total$Class_labels, p = .75, list = FALSE, times = 1)
+    trainDF <- pp_total[ splitIndex,]
+    testDF  <- pp_total[-splitIndex,]
+    trainLabels <- pp_total$Class_labels[splitIndex]
+    testLabels <- pp_total$Class_labels[-splitIndex]
+    # create caret trainControl object to control the number of cross-validations performed
+    objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=twoClassSummary)
+    
+    message("Model about to be built")
     if (flags$model[1]=='LASSO') {
-        ################################################
-        # glmnet LASSO                                ##
-        ################################################
-        # split data into training and testing chunks
-        set.seed(567)
-        splitIndex <- createDataPartition(pp_total$Class_labels, p = .75, list = FALSE, times = 1)
-        trainDF <- pp_total[ splitIndex,]
-        testDF  <- pp_total[-splitIndex,]
-        trainLabels <- pp_total$Class_labels[splitIndex]
-        testLabels <- pp_total$Class_labels[-splitIndex]
-        # create caret trainControl object to control the number of cross-validations performed
-        objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=twoClassSummary)
-        
-        message("Model about to be built")
-        
-        # run model
-        #objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet",  preProcess=c("center", "scale"), metric = "ROC", trControl=objControl, tuneGrid=NULL)
-        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",  preProcess=c("center", "scale"), metric = "ROC", trControl=objControl, tuneGrid=NULL)
-        
-        
-        # get predictions on held-out testing data
-        # get prediction classes
-        predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
-        modelPerfSummary <- confusionMatrix(predictions, testLabels)
-        # get probabilities for each class
-        probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
-        auc <- roc(testLabels, probPreds[,1])
-        
-        ###### Model Ouputs to file #############
-        #sink(paste(saveFolder, 'LASSO output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
-        sink(paste(saveFolder, 'LASSO_output_',outcomeNameS,'.txt',sep=''))
-        #cat(paste('Results for LASSO Model for-',outcomeNameS,' using ',as.character(nCases),' Cases and ',as.character(nControls),' Controls. \n\n',sep=''))
-        cat(paste('Results for LASSO Model for-',outcomeNameS,' using ',as.character(nControls),' Controls. \n\n',sep=''))
-        cat("\nModel Summary \n \n")
-        # find out variable importance
-        print(summary(objModel))
-        # print model performance
-        print(modelPerfSummary)
-        # find out model details
-        cat("\nModel Details \n \n")
-        print(objModel)
-        cat("\n")
-        print(varImp(objModel, scale=F, top=20))
-        cat("\nGenerated on ")
-        cat(format(Sys.time(), "%a %b %d %Y %X"))
-        sink()
+        # run lasso LR model
+        #TODO: find out when preprocessing happens in the code (ie, just on training set during cv, or applied to all the data? preProcess=c("center", "scale") )
+        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet", metric = "ROC", trControl=objControl, tuneGrid=NULL)
+    } else if (flags$model[1]=='RF') {
+        # run random forest model
+        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "ROC", trControl=objControl, tuneGrid=NULL)
     }
+        
+    # get predictions on held-out testing data
+    # get prediction classes
+    predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
+    modelPerfSummary <- confusionMatrix(predictions, testLabels)
+    # get probabilities for each class
+    probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
+    auc <- roc(testLabels, probPreds[,1])
+    
+    ###### Model Ouputs to file #############
+    #sink(paste(saveFolder, flags$model[1], ' output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
+    sink(paste(saveFolder, flags$model[1], '_output_',outcomeNameS,'.txt',sep=''))
+    #cat(paste('Results for ',  flags$model[1], 'Model for-',outcomeNameS,' using ',as.character(nCases),' Cases and ',as.character(nControls),' Controls. \n\n',sep=''))
+    cat(paste('Results for ', flags$model[1], ' Model for-',outcomeNameS,' using ',as.character(nControls),' Controls. \n\n',sep=''))
+    cat("\nModel Summary \n \n")
+    # find out variable importance
+    print(summary(objModel))
+    # print model performance
+    print(modelPerfSummary)
+    # find out model details
+    cat("\nModel Details \n \n")
+    print(objModel)
+    cat("\n")
+    print(varImp(objModel, scale=F, top=20))
+    cat("\nGenerated on ")
+    cat(format(Sys.time(), "%a %b %d %Y %X"))
+    sink()
+    
     modelReturns <- list(model = objModel, predictorsNames = predictorsNames, auc)
     return (modelReturns)
 }
@@ -979,36 +981,5 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
 
 }
 
-
-
-#' This function returns the actual text corresponding to a set of concept IDs
-#'
-#' @description This function returns the actual text corresponding to a set of concept IDs (for OHDSI)
-#'
-#' @param type_cids        Vector of cids and their feature type - e.g. "obs:12453"
-#' @param conn              Database connection
-#' @param cdmSchema         Schema for database
-#' @param dbms              Database system
-#' @param ind=2               Indice for specifying which part of string split we're interested in.  Default=2, which would be 12453 for "obs:12453"
-#'
-#' @details This function returns a data frame with the original type:cid term, the cid term separated out, and the text corresponding to the cid  
-#'
-#' @return concept_dict
-#'
-#' @examples \dontrun{
-#'
-#'  concept_dict <- translateCIDs(type_cids, conn, cdmSchema, dbms)
-#'
-#' }
-#'
-#' @export
-translateCIDs <- function (type_cids, conn, cdmSchema, dbms, ind=2) {
-    cids=sapply(type_cids, function(x) unlist(strsplit(x, ":"))[ind])
-    concept_dict <- data.frame(type_cids, cids)
-    concepts <- sapply(cids, function(x) executeSQL(conn, cdmSchema, paste("SELECT concept_name FROM @cdmSchema.concept WHERE concept_id=",x,";", sep=""),dbms))
-    concept_dict$concepts <- as.character(concepts)
-    
-    return (concept_dict)
-}
 
 
