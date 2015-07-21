@@ -122,7 +122,7 @@ if (loadPtData) {
 } else {
   # TODO: need to add option to look before dx, too
   # TODO: combine these two into a single function
-  dataFcases <-getPatientDataCases(conn, dbms, cases$V1, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema, timeWindowOpt)
+  dataFcases <-getPatientDataCases(conn, dbms, cases$V1, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema)
   if (saveALLresults) {
       save(dataFcases,file=caseDataFN)
   }
@@ -175,7 +175,7 @@ if(loadModel) {
   
 } else {
   # create model
-  fv_full_data <- combineFeatureVectors(flag, cases, controls, fv_all, outcomeName, threshCutoff)
+  fv_full_data <- combineFeatureVectors(flag, cases, controls, fv_all, outcomeName)
   model_predictors <- buildModel(flag, fv_full_data, outcomeName, saveFolder)
   
   message("Model built")

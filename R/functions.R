@@ -237,7 +237,7 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
 #' }
 #'
 #' @export
-getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignores, flags, schema, timeWindowOpt) {
+getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignores, flags, schema) {
     patientFeatures_drugexposures_df<- list()
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
@@ -247,7 +247,8 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     #keepDomains: c("Condition", "Device", "Drug", "Procedure")
     # others: "Observation", "Spec Anatomic Site", "Measurement"
     # most certainly not useful: "Metadata", "Unit", "Meas Value", "Note Type"
-    removeDomains <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")
+    #removeDomains <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")
+    removeDomains <- flags$remove_domains[1]
     
     for (patientQueue in 1:(length(patient_ids))) {
         patients_list_df<- list()
@@ -255,18 +256,17 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         #NOW: just looks at keywords. 
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
         
-        
         #NOW:just looks at keywords. 
         patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
 
         # Set range for data extract
-        if (timeWindowOpt==1) {
+        if (flags$timeWindowOpt[1]==1) {
             # if want to go from first term appearance in notes
             dateStart<-min(dates$observation_date)
             dateEnd<- max(dates$observation_date)
-        } else if (timeWindowOpt==2) {
+        } else if (flags$timeWindowOpt[1]==2) {
           # if want to go from 10 years prior to first term appearance in notes
             dateEnd <- min(dates$observation_date)
             dateStart <- as.POSIXlt(dateEnd)
@@ -341,7 +341,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         }
         if (flags$visits[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.visit_start_date >='",as.character(dateStart), "'AND A.visit_start_date <='",as.character(dateEnd), "' AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id, C.concept_name FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.visit_start_date >='",as.character(dateStart), "'AND A.visit_start_date <='",as.character(dateEnd), "' AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
     
 
             if (nrow(tmp_fv) >0) { 
@@ -366,33 +366,39 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
             rm('tmp_fv')
         }
         if (flags$labs[1])  {
-          #TODO: figure out where lab types are stored!
-            
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date, A.measurement_type_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_date >='",as.character(dateStart),"' AND A.measurement_date <='",as.character(dateEnd),"' AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.ref_unit=B.concept_id",sep=''), dbms)
-
-            if (nrow(tmp_fv) >0) { #deal with patients with no entries
-                # TODO: figure this bit out exactly
-                #Remove lab values that did not map properly
-                tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="0"),]
-                #Remove lab values that have a measurement of NONE
-                tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="4124462"),]
-                #Create unique categorical categories for lab values
-                tmp_fv$type_valueM <- paste(tmp_fv$measurement_type_concept_id, tmp_fv$value_as_concept_id, sep=":")
-                test1<-aggregate( measurement_id ~ type_valueM, tmp_fv, function(x) length(unique(x)))
-                # normalize data by length of follow-up time
-                test1$counts <- test1$counts/timeDiff
-                # change columns to rows
-                test1<-data.frame(t(test1))
-                colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
-                test1<-test1[-c(1), , drop=FALSE]
-            } else {
-                #create an empty dataset
-                test1 <- data.frame(t(data.frame(x = numeric(0))))
-            }
-            row.names(test1)<-as.character(patient_ids[patientQueue])
-            patientFeatures_labs_df[[patientQueue]]<-test1
-            rm('test1')
-            rm('tmp_fv')
+          #TODO: amend when get lab value re-mapping
+          
+          tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id=B.concept_id AND A.measurement_date >='",as.character(dateStart),"' AND A.measurement_date <='",as.character(dateEnd),"' AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
+          
+          if (nrow(tmp_fv) >0) { #deal with patients with no entries
+            # safety catches - now addressed within sql query
+            #Remove lab values that did not map properly
+            #0 is concept code for "no matching value" - removes these 
+            # [changed these to measurement_concept_id rather than measurement_type_concept_id - this seems to make more sense]
+            #uncomment if remove from sql query: tmp_fv<-tmp_fv[!(tmp_fv$measurement_concept_id=="0"),]
+            #Remove lab values that have a measurement of NONE
+            #4124462 is concept_code for "qualifier value" - removes these
+            #uncomment if remove from sql query: tmp_fv<-tmp_fv[!(tmp_fv$measurement_concept_id=="4124462"),]
+            #Create unique categorical categories for lab values
+            #[changed to measurement_concept_id rather than measurement_type_concept_id - this seems to make more sense - old: tmp_fv$type_valueM <- paste(tmp_fv$measurement_type_concept_id, tmp_fv$value_as_concept_id, sep=":")]
+            tmp_fv$type_valueM <- paste(tmp_fv$measurement_concept_id, tmp_fv$value_as_concept_id, sep=":")
+            test1<-aggregate( measurement_id ~ type_valueM, tmp_fv, function(x) length(unique(x)))
+            names(test1)[names(test1)=="type_valueM"] <- "concept_id_appended"
+            names(test1)[names(test1)=="measurement_id"] <- "counts"
+            # normalize data by length of follow-up time
+            test1$counts <- test1$counts/timeDiff
+            test1<-data.frame(t(test1))
+            # move row of concept_id_appended labels to colnames
+            colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
+            test1<-test1[-c(1), , drop=FALSE]
+          } else {
+            #create an empty dataset
+            test1 <- data.frame(t(data.frame(x = numeric(0))))
+          }
+          row.names(test1)<-as.character(patient_ids[patientQueue])
+          patientFeatures_labs_df[[patientQueue]]<-test1
+          rm('test1')
+          rm('tmp_fv')
         }
     }
     dataCases <- list(drugExposures = patientFeatures_drugexposures_df, observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df)
@@ -432,7 +438,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
     patientFeatures_labs_df<- list()
     
     # domains that we do not want to include as features
-    removeDomains <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")
+    removeDomains <- flags$remove_domains[1]
     
     for (patientQueue in 1:(length(patient_ids))) {
       
@@ -459,7 +465,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
       
         if (flags$drugexposures[1]) {
             
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL  AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason, B.concept_name FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL  AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { #deal with patients with no entries
                 test1<-aggregate( drug_exposure_id ~ drug_concept_id, tmp_fv, function(x) length(unique(x)))
@@ -505,7 +511,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
         }
         if (flags$visits[1]) {
           
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id, C.concept_name FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { #deal with patients with no entries
                 test1<-aggregate( condition_occurrence_id ~ condition_concept_id, tmp_fv, function(x) length(unique(x)))
@@ -526,22 +532,29 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             rm('test1')
             rm('tmp_fv')
         }
-        if (flags$labs[1])  {
-
-            tmp_fv = executeSQL(connection, schema, paste("SELECT measurement_id, person_id, measurement_date, measurement_type_concept_id, value_as_number, value_as_concept_id FROM @cdmSchema.measurement WHERE person_id=",as.character(patient_ids[patientQueue])," AND measurement_type_concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+        if (flags$labs[1])  {  
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id=B.concept_id AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { #deal with patients with no entries
+                # safety catches
                 #Remove lab values that did not map properly
-                tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="0"),]
+                #0 is concept code for "no matching value"
+                #tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="0"),]
+                #tmp_fv<-tmp_fv[!(tmp_fv$measurement_concept_id=="0"),]
                 #Remove lab values that have a measurement of NONE
-                tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="4124462"),]
+                #4124462 is concept_code for "qualifier value"
+                #tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="4124462"),]
+                #tmp_fv<-tmp_fv[!(tmp_fv$measurement_concept_id=="4124462"),]
                 #Create unique categorical categories for lab values
-                tmp_fv$type_valueM <- paste(tmp_fv$measurement_type_concept_id, tmp_fv$value_as_concept_id, sep=":")
+                #tmp_fv$type_valueM <- paste(tmp_fv$measurement_type_concept_id, tmp_fv$value_as_concept_id, sep=":")
+                tmp_fv$type_valueM <- paste(tmp_fv$measurement_concept_id, tmp_fv$value_as_concept_id, sep=":")
                 test1<-aggregate( measurement_id ~ type_valueM, tmp_fv, function(x) length(unique(x)))
+                names(test1)[names(test1)=="type_valueM"] <- "concept_id_appended"
+                names(test1)[names(test1)=="measurement_id"] <- "counts"
                 # normalize data by length of follow-up time
-                #TODO  not sure if this index below (counts) is correct! - IT IS NOT!
                 test1$counts <- test1$counts/timeDiff
                 test1<-data.frame(t(test1))
+                # move row of concept_id_appended labels to colnames
                 colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
                 test1<-test1[-c(1), , drop=FALSE]
             } else {
@@ -717,7 +730,7 @@ return (featureVectors)
 #' }
 #'
 #' @export
-combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS, threshCutoff) {
+combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS) {
   # Merge all dataframes/Feature vectors for the different sources and have a big list of them
   feature_vectors <- list()
   
@@ -782,7 +795,7 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
   ppv_bin <- pp_total[,predictorsNames]  # get numeric data
   ppv_bin[ppv_bin > 0] <- 1  # binarize
   colSums <- colSums(ppv_bin) # get column sums
-  cutoff <- threshCutoff*nrow(ppv_bin)  # find number of patients who need to have feature to keep it
+  cutoff <- flags$threshCutoff[1]*nrow(ppv_bin)  # find number of patients who need to have feature to keep it
   keepRows <- predictorsNames[colSums>cutoff]  # get new list of features
   # re-assign
   pp_final <- pp_total[,keepRows]
@@ -929,11 +942,11 @@ conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
   selection$rank <- c(1:numFeats)
   
   # make sql query
-  #concepts <- sapply(featCodesN, function(x) executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE concept_id=",x,";", sep=""),dbms))  # for debugging to check ids are correct
-  concepts <- sapply(selection$ids, function(x) executeSQL(connection, schema, paste("SELECT concept_name FROM @cdmSchema.concept WHERE concept_id=",x,";", sep=""),dbms))
+  concept_data <- sapply(selection$ids, function(x) executeSQL(connection, schema, paste("SELECT A.* FROM @cdmSchema.concept as A WHERE concept_id=",x,";", sep=""),dbms))
   
   # add concepts to output
-  selection$concepts <- as.character(concepts)
+  selection$concepts <- as.character(concept_data[rownames(concept_data)=="concept_name",])
+  selection$code_source <- as.character(concept_data[rownames(concept_data)=="vocabulary_id",])
   
   return (selection)
 }

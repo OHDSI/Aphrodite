@@ -46,8 +46,8 @@ library(ggplot2)
 folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
 
-#source("/home/kniehaus/knCode_FH/FH_settings.R")
-source("/home/kniehaus/Intermediate_data/FH_test300/settings_knTesting_FH_19Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("/home/kniehaus/knCode_FH/FH_settings.R")
+#source("/home/kniehaus/Intermediate_data/FH_test300/settings_knTesting_FH_19Jul2015.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 source("R/functions.R")     # source this if changes have been made that aren't yet in the package
 
 #Initiate connection to DB
