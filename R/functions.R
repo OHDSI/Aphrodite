@@ -243,11 +243,6 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
 
-    # TODO: make into a variable
-    #keepDomains: c("Condition", "Device", "Drug", "Procedure")
-    # others: "Observation", "Spec Anatomic Site", "Measurement"
-    # most certainly not useful: "Metadata", "Unit", "Meas Value", "Note Type"
-    #removeDomains <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")
     removeDomains <- flags$remove_domains[1]
     
     for (patientQueue in 1:(length(patient_ids))) {
@@ -275,16 +270,23 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         }
         
         # create normalizing term
-        # default time = how long to say patient was observed when have no data
-        defaultTime <- 1
-        if (length(dates$observation_date)<1) {
-          timeDiff <- defaultTime
+        # defaultTime = time to put for patients who don't have any follow-up time
+        if (flags$timeNormalize[1]==1) {
+          defaultTime <- 1    # set default time as 1 if have only 1 observation (i.e., spread single observation over an entire year)
+          if (length(dates$observation_date)<1) {
+            timeDiff <- defaultTime
+          } else {
+            timeDiff <- (as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365
+          }
+          if (timeDiff==0) {
+            timeDiff <- defaultTime
+          }
         } else {
-          timeDiff <- (as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365
+          # divide counts by 1 --> no normalization occurs
+          timeDiff <- 1
         }
-        if (timeDiff==0) {
-          timeDiff <- defaultTime
-        }
+        
+        
         
         #Using the data extract all patient data for the cases
 
@@ -453,14 +455,19 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
       
         # create normalizing term
         # defaultTime = time to put for patients who don't have any follow-up time
-        defaultTime <- 1
-        if (length(dates$observation_date)<1) {
-          timeDiff <- defaultTime
+        if (flags$timeNormalize[1]==1) {
+              defaultTime <- 1    # set default time as 1 if have only 1 observation (i.e., spread single observation over an entire year)
+              if (length(dates$observation_date)<1) {
+                timeDiff <- defaultTime
+              } else {
+                timeDiff <- (as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365
+              }
+              if (timeDiff==0) {
+                  timeDiff <- defaultTime
+              }
         } else {
-          timeDiff <- (as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365
-        }
-        if (timeDiff==0) {
-            timeDiff <- defaultTime
+              # divide counts by 1 --> no normalization occurs
+              timeDiff <- 1
         }
       
         if (flags$drugexposures[1]) {
@@ -536,7 +543,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id=B.concept_id AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { #deal with patients with no entries
-                # safety catches
+                # safety catches - now in sql call
                 #Remove lab values that did not map properly
                 #0 is concept code for "no matching value"
                 #tmp_fv<-tmp_fv[!(tmp_fv$measurement_type_concept_id=="0"),]
@@ -852,16 +859,19 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     trainLabels <- pp_total$Class_labels[splitIndex]
     testLabels <- pp_total$Class_labels[-splitIndex]
     # create caret trainControl object to control the number of cross-validations performed
-    objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=twoClassSummary)
+    #objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=twoClassSummary) - if want to use ROC for metric
+    objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=f_score_calc)
     
     message("Model about to be built")
     if (flags$model[1]=='LASSO') {
+        # set parameter grid
+        lr_grid <- expand.grid(alpha = seq(0,1,length=10), lambda = seq(0.001, 2, length=10))
         # run lasso LR model
-        #TODO: find out when preprocessing happens in the code (ie, just on training set during cv, or applied to all the data? preProcess=c("center", "scale") )
-        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet", metric = "ROC", trControl=objControl, tuneGrid=NULL)
+        #TODO: find out when preprocessing happens in the code (ie, just on training set during cv, or applied to all the data? preProcess=c("center", "scale") ) - I think applied to all data
+      objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet", metric = "Fscore", trControl=objControl, tuneGrid=lr_grid)
     } else if (flags$model[1]=='RF') {
         # run random forest model
-        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "ROC", trControl=objControl, tuneGrid=NULL)
+        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=NULL)
     }
         
     # get predictions on held-out testing data
@@ -989,6 +999,42 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
   g
   ggsave(plotSaveFile, width = 16, height = 9, dpi = 120)
 
+}
+
+
+
+#' This function creates a summary metric for model training
+#'
+#' @description This function creates a new summary metric for model training, specific for unbalanced classes.  Inputs as specified in caret. 
+#'
+#' @param data        A dataframe of the held-out example cases, with columns for 'obs', 'pred', 'T', 'F'.  'T' and 'F' have the probabilities of each of these classes
+#' @param lev        Outcome factor levels for model
+#' @param model       Character string of model used
+#'
+#' @details This function returns the F-score for model training optimization.  Beta is currently set at 2 - TODO: should make this edit-able in future version. 
+#'
+#' @return f_score
+#'
+#' @examples \dontrun{
+#'
+#'  f_score <- f_score_calc(data, lev, model)
+#'
+#' }
+#'
+#' @export
+f_score_calc <- function (data, lev=levels(data$obs), model=NULL) {
+  out <- c(twoClassSummary(data, lev = levels(data$obs), model = NULL))
+  
+  # get TP, FP, FN, FN
+  TN <- nrow(data[(data$obs==data$pred) & (data$obs=='F'),])
+  TP <- nrow(data[(data$obs==data$pred) & (data$obs=='T'),])
+  FP <- nrow(data[(data$obs!=data$pred) & (data$pred=='T'),])
+  FN <- nrow(data[(data$obs!=data$pred) & (data$pred=='F'),])
+  
+  beta <- 5
+  f_score <- ((1+beta^2)*TP) / ( (1+beta^2)*TP + (beta^2)*FN + FP)
+  out <- c(out, Fscore=f_score)
+  return(out)
 }
 
 
