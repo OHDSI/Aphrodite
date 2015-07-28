@@ -2,11 +2,11 @@ DBMS:
 postgresql
 
 Error:
-org.postgresql.util.PSQLException: ERROR: column a.ref_unit does not exist
-  Position: 293
+org.postgresql.util.PSQLException: ERROR: column a.value_as_concept does not exist
+  Position: 166
 
 SQL:
-SELECT A.measurement_id, A.person_id, A.measurement_date, A.measurement_type_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM ohdsiv5.measurement as A, ohdsiv5.concept as B WHERE A.person_id=238228 AND A.measurement_id NOT IN (45459846,45486714,4134862,40520092) AND A.ref_unit=B.concept_id
+SELECT A.measurement_id, A.person_id, A.measurement_date as date, A.measurement_type_concept_id, A.measurement_concept_id as concept_id, A.value_as_number as value, A.value_as_concept, B.concept_name FROM ohdsiv5.measurement as A, ohdsiv5.concept as B WHERE A.person_id=1219113 AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462 AND A.measurement_concept_id=B.concept_id;
 
 R version:
 R version 3.1.2 (2014-10-31)
@@ -25,6 +25,7 @@ Attached base packages:
 - base
 
 Other attached packages:
+- reshape2 (1.4.1)
 - dbConnect (1.0)
 - gWidgets (0.0-54)
 - RMySQL (0.10.3)

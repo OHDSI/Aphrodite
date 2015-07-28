@@ -292,7 +292,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 
         if (flags$drugexposures[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_exposure_start_date >='",as.character(dateStart),"' AND A.drug_exposure_start_date <='",as.character(dateEnd), "' AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason, B.concept_name FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_exposure_start_date >='",as.character(dateStart),"' AND A.drug_exposure_start_date <='",as.character(dateEnd), "' AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             # A.qualifier_concept_id = 0 AND
 
             if (nrow(tmp_fv) >0) { 
@@ -368,7 +368,6 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
             rm('tmp_fv')
         }
         if (flags$labs[1])  {
-          #TODO: amend when get lab value re-mapping
           
           tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id=B.concept_id AND A.measurement_date >='",as.character(dateStart),"' AND A.measurement_date <='",as.character(dateEnd),"' AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
           
@@ -448,26 +447,42 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
         # get patient dates
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
         
-        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        
         
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
       
         # create normalizing term
         # defaultTime = time to put for patients who don't have any follow-up time
+        defaultTime <- 1    # set default time as 1 if have only 1 observation (i.e., spread single observation over an entire year or 1 month)
         if (flags$timeNormalize[1]==1) {
-              defaultTime <- 1    # set default time as 1 if have only 1 observation (i.e., spread single observation over an entire year)
+          # if normalizing by length of follow-up in years
               if (length(dates$observation_date)<1) {
                 timeDiff <- defaultTime
               } else {
+                # time diff in years
                 timeDiff <- (as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365
               }
-              if (timeDiff==0) {
-                  timeDiff <- defaultTime
+        } else if (flags$timeNormalize[1]==2) {
+          # if normalizing by length of follow-up in months
+              if (length(dates$observation_date)<1) {
+                timeDiff <- defaultTime
+              } else {
+                # time diff in months
+                timeDiff <- ((as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365)*12
               }
+        } else if (flags$timeNormalize[1]==3) {
+          # if normalizing by the number of visits
+              timeDiff <- nrow(unique(dates))
         } else {
+          # this includes both flags$timeNormalize[1]==0 --> no normalization AND flags$timeNormalize[1]==4 --> normalize by the number of measurements in the category (addressed within sections)
               # divide counts by 1 --> no normalization occurs
               timeDiff <- 1
+        }
+        
+        # adjust if no time difference
+        if (timeDiff==0) {
+          timeDiff <- defaultTime
         }
       
         if (flags$drugexposures[1]) {
@@ -475,15 +490,51 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id, A.drug_exposure_start_date, A.drug_type_concept_id, A.stop_reason, B.concept_name FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL  AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
 
             if (nrow(tmp_fv) >0) { #deal with patients with no entries
-                test1<-aggregate( drug_exposure_id ~ drug_concept_id, tmp_fv, function(x) length(unique(x)))
-                names(test1)[names(test1)=="drug_concept_id"] <- "concept_id"
-                names(test1)[names(test1)=="drug_exposure_id"] <- "counts"
-                # normalize data by length of follow-up time
+                # I don't think this takes into account multiple terms on the same date:
+                # test1<-aggregate( drug_exposure_id ~ drug_concept_id, tmp_fv, function(x) length(unique(x)))
+                # replace with: 
+                ptData <- as.data.table(tmp_fv)
+                byDate <- dcast.data.table(ptData, drug_exposure_start_date ~ drug_concept_id, fun=function(x) {if (length(x)>0) {1} else {0}}, value.var='drug_concept_id')  # counts each code just once per visit
+                #byDate2 <- dcast.data.table(ptData, drug_exposure_start_date ~ drug_concept_id, fun=length)  # if you want to keep the counts per visit
+                byDate <- as.data.frame(byDate)
+                if (ncol(byDate)>2) {
+                    byDateSum <- as.data.frame(colSums(byDate[,colnames(byDate)!='drug_exposure_start_date']))
+                }
+                else {  #colsums doesn't work if there is only 1 column (2 above b/c also column for date, which is ignored in sum)
+                    byDateSum <- as.data.frame(sum(byDate[,colnames(byDate)!='drug_exposure_start_date']))
+                }
+                colnames(byDateSum) <- c("counts")
+                byDateSum$concept_id <- rownames(byDateSum)
+                test1 <- byDateSum
+                #names(test1)[names(test1)=="drug_concept_id"] <- "concept_id"
+                #names(test1)[names(test1)=="drug_exposure_id"] <- "counts"
+                # normalize data 
+                if (flags$timeNormalize[1]==4) {
+                  # if normalizing by the number of measurements
+                  timeDiff <- sum(test1$counts)
+                } else if (flags$timeNormalize[1]==5) {
+                  # if normalizing by the number of unique measurements
+                  timeDiff <- nrow(test1)
+                }
+                message('')
+                message(patientQueue)
+                message(test1)
+                # normalize [timeDiff already defined if alternative normalization options]
                 test1$counts <- test1$counts/timeDiff
-                # change columns to rows
-                test1<-data.frame(t(test1))
-                colnames(test1)[!is.na(test1[1,])] <- test1[1,][!is.na(test1[1,])]
-                test1<-test1[-c(1), , drop=FALSE]
+                message(timeDiff)
+                message(test1)
+                # change columns to rows & clean
+                test1<-data.frame(t(test1))     # transpose
+                colnames(test1)[!is.na(test1[rownames(test1)=='concept_id',])] <- test1[rownames(test1)=='concept_id',][!is.na(test1[rownames(test1)=='concept_id',])]    #put concept IDs as column names 
+                test1 <- test1[rownames(test1)=='counts',,drop=FALSE]   # keep only the counts
+#                 } else {  #if only have 1 column & row, colSums doesn't work. make manually
+#                     test1 <- data.frame(newCol=1)
+#                     colnames(test1) <- colnames(byDate)[colnames(byDate)!='drug_exposure_start_date']
+#                     message('')
+#                     message(patientQueue)
+#                     message(test1)
+#                }
+                #test1<-test1[-c(1), , drop=FALSE]
             } else {
                 test1 <- data.frame(t(data.frame(x = numeric(0))))
             }
@@ -500,7 +551,15 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
                 test1<-aggregate( observation_id ~ observation_concept_id, tmp_fv, function(x) length(unique(x)))
                 names(test1)[names(test1)=="observation_concept_id"] <- "concept_id"
                 names(test1)[names(test1)=="observation_id"] <- "counts"
-                # normalize data by length of follow-up time
+                # normalize data 
+                if (flags$timeNormalize[1]==4) {
+                  # if normalizing by the number of measurements
+                  timeDiff <- sum(test1$counts)
+                } else if (flags$timeNormalize[1]==5) {
+                  # if normalizing by the number of unique measurements
+                  timeDiff <- nrow(test1)
+                }
+                # normalize [timeDiff already defined if alternative normalization options]
                 test1$counts <- test1$counts/timeDiff
                 #change colums to rows
                 test1<-data.frame(t(test1))
@@ -524,7 +583,15 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
                 test1<-aggregate( condition_occurrence_id ~ condition_concept_id, tmp_fv, function(x) length(unique(x)))
                 names(test1)[names(test1)=="condition_concept_id"] <- "concept_id"
                 names(test1)[names(test1)=="condition_occurrence_id"] <- "counts"
-                # normalize data by length of follow-up time
+                # normalize data 
+                if (flags$timeNormalize[1]==4) {
+                  # if normalizing by the number of measurements
+                  timeDiff <- sum(test1$counts)
+                } else if (flags$timeNormalize[1]==5) {
+                  # if normalizing by the number of unique measurements
+                  timeDiff <- nrow(test1)
+                }
+                # normalize [timeDiff already defined if alternative normalization options]
                 test1$counts <- test1$counts/timeDiff
                 #change columns to rows
                 test1<-data.frame(t(test1))
@@ -558,7 +625,15 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
                 test1<-aggregate( measurement_id ~ type_valueM, tmp_fv, function(x) length(unique(x)))
                 names(test1)[names(test1)=="type_valueM"] <- "concept_id_appended"
                 names(test1)[names(test1)=="measurement_id"] <- "counts"
-                # normalize data by length of follow-up time
+                # normalize data 
+                if (flags$timeNormalize[1]==4) {
+                  # if normalizing by the number of measurements
+                  timeDiff <- sum(test1$counts)
+                } else if (flags$timeNormalize[1]==5) {
+                  # if normalizing by the number of unique measurements
+                  timeDiff <- nrow(test1)
+                }
+                # normalize [timeDiff already defined if alternative normalization options]
                 test1$counts <- test1$counts/timeDiff
                 test1<-data.frame(t(test1))
                 # move row of concept_id_appended labels to colnames
@@ -871,7 +946,8 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
       objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet", metric = "Fscore", trControl=objControl, tuneGrid=lr_grid)
     } else if (flags$model[1]=='RF') {
         # run random forest model
-        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=NULL)
+        rf_grid <- expand.grid(mtry=round(seq(.01*length(predictorsNames), .9*length(predictorsNames), length=6)))
+        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=rf_grid)
     }
         
     # get predictions on held-out testing data
