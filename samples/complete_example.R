@@ -25,15 +25,15 @@
 # @author Juan M. Banda
 
 # Install necessary packages if needed, remove comments
-# install.packages("devtools")
-#install_github("ohdsi/Aphrodite")
+install.packages("devtools")
+install_github("ohdsi/Aphrodite")
 library(Aphrodite)
 library(SqlRender)
 library(plyr)
 library(caret)
 library(pROC)
 library(DatabaseConnector)
-folder = "/home/jmbanda/OHDSI/Aphrodite-TEMP/" # Folder containing the R files and outputs, use forward slashes
+folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
 
 source("CopyOfsettings.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
@@ -51,8 +51,8 @@ write.table(wordLists$ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote
 message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
 
 # Load Keyword list after editing
-keywordList_FF <- read.table('keywordlist.tsv', sep="\t", header=FALSE)
-ignoreList_FF <- read.table('ignorelist.tsv', sep="\t", header=FALSE)
+keywordList_FF <- read.table('keywordlist_ed.tsv', sep="\t", header=FALSE)
+ignoreList_FF <- read.table('ignorelist_ed.tsv', sep="\t", header=FALSE)
 
 
 # STEP 2 - Get cases, controls
