@@ -5,23 +5,18 @@
 \title{This function builds a model for the specified feature vector using cases and
 controls for a certain outcomeName}
 \usage{
-buildModel(flags, cases_pids, controls_pids, featureVector, outcomeNameS)
+buildModel(flags, pp_total, outcomeNameS, saveFolder)
 }
 \arguments{
 \item{flags}{The R dataframe that contains all feature/model flags
 specified in settings.R.}
 
-\item{cases_pids}{List of patient_id's considered cases (for labeling
-purposes)}
-
-\item{controls_pids}{List of patient_id's considered controls (for labeling
-purposes)}
-
-\item{featureVector}{Flattened feature vector returned by buildFeatureVector
-function.}
-
 \item{outcomeNameS}{String description of the outcome for which the model is
   being built}
+
+\item{featureVector}{Flattened feature vector returned by combineFeatureVectors
+function, with labeled cases and controls.  Assumed to have one column named "Class_labels"
+and one named "pid"}
 }
 \value{
 An transferable caret Model object
@@ -34,13 +29,11 @@ model.
 \details{
 This function builds a model for the specified outcomeName. The
 model is specified in the flags dataframe (currently only supports LASSO).
-The cases_pids and controld_pids are patient_id's used for the labeling of
-the testing and training sets.
 }
 \examples{
 \dontrun{
 
- model_predictors <- buildModel(flag, cases, controls, fv_all, outcomeName)
+ model_predictors <- buildModel(flag, fv_all, predictorsNames, outcomeName, saveFolder)
 
 }
 }
