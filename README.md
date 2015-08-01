@@ -13,6 +13,7 @@ Requirementes
 	- caret
 	- dplyr
 	- pROC
+    - data.table
 	- devtools
 	- SqlRender
 	- DatabaseConnector
