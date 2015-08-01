@@ -41,7 +41,7 @@ source("CopyOfsettings.R")   #Load your settings.R  - usually found in ../R/sett
 
 #Initiate connection
 
-#jdbcDrivers <<- new.env()
+jdbcDrivers <<- new.env()
 
 connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
 conn <- connect(connectionDetails)

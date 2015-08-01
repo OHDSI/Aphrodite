@@ -20,6 +20,7 @@ Imports:
     pROC,
     devtools,
     knitr,
+    data.table,
     testthat
 Suggests:
     ggplot2
