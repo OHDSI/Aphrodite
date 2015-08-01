@@ -579,7 +579,7 @@ return (patientData)
 #' }
 #'
 #' @export
-convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
+convertFeatVecPortion <- function (featuresType, key, labIndic) {
 
   # combine all features into a single data table, with missing features replaced with NA
   featuresType_wNames <- lapply(featuresType, function(x) {x$pid <- rownames(x); x})
@@ -649,28 +649,28 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
 
   #We now flatten the vectors
   if (flags$observations[1]) {
-      FV_ob <-convertFeatVecPortion(featuresOB, 'obs:',labIndic=1)
+      FV_ob <-convertFeatVecPortion(featuresOB, 'obs:',1)
       message("Obs done")
   } else {
       FV_ob <- NULL
   }
 
   if (flags$visits[1]) {
-        FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:',labIndic=1)
+        FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:',1)
         message("Visits done")
   } else {
       FV_v <- NULL
   }
 
   if (flags$drugexposures[1]) {
-        FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:',labIndic=1)
+        FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:',1)
         message("Drugs done")
   } else {
       FV_de <- NULL
   }
 
   if (flags$labs[1]) {
-      FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', labIndic=1)
+      FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', 1)
       message("Labs done")
   } else {
       FV_lab <- NULL
