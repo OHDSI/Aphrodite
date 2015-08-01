@@ -585,10 +585,10 @@ convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
   featuresType_wNames <- lapply(featuresType, function(x) {x$pid <- rownames(x); x})
   FV_DT <- rbindlist(featuresType_wNames, use.names = TRUE, fill=TRUE)
 
-  if (labIndic) {
+  #if (labIndic) {
     # labs are not all in numeric form, so must convert
     FV_DT <- FV_DT[, lapply(.SD, as.numeric), by=pid]
-  }
+  #}
 
   # replace NAs with 0
   FV_DT <- FV_DT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=pid]
