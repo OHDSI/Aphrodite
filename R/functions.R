@@ -371,25 +371,25 @@ manipulateSqlPull <- function(tmp_fv, flags, timeDiff) {
           }
           colnames(byDateSum) <- c("counts")
           byDateSum$concept_id <- rownames(byDateSum)
-          test1 <- byDateSum
           
           # normalize data 
           if (flags$timeNormalize[1]==4) {
               # if normalizing by the number of measurements
-              timeDiff <- sum(test1$counts)
+              timeDiff <- sum(byDateSum$counts)
           } else if (flags$timeNormalize[1]==5) {
               # if normalizing by the number of unique measurements
-              timeDiff <- nrow(test1)
+              timeDiff <- nrow(byDateSum)
           }
           # normalize [timeDiff already defined if alternative normalization options]
-          message(test1$counts)
-          test1$counts <- test1$counts/timeDiff
-          message(test1$counts)
+          byDateSum$counts <- byDateSum$counts/timeDiff
+          
+          test1 <- data.frame(t(byDateSum$counts))
+          colnames(test1) <- byDateSum$concept_id
           
           # change columns to rows & clean
-          test1<-data.frame(t(test1))     # transpose
-          colnames(test1)[!is.na(test1[rownames(test1)=='concept_id',])] <- test1[rownames(test1)=='concept_id',][!is.na(test1[rownames(test1)=='concept_id',])]    #put concept IDs as column names 
-          test1 <- test1[rownames(test1)=='counts',,drop=FALSE]   # keep only the counts
+          #test1<-data.frame(t(test1))     # transpose
+          #colnames(test1)[!is.na(test1[rownames(test1)=='concept_id',])] <- test1[rownames(test1)=='concept_id',][!is.na(test1[rownames(test1)=='concept_id',])]    #put concept IDs as column names 
+          #test1 <- test1[rownames(test1)=='counts',,drop=FALSE]   # keep only the counts
           
       } else {
         # If no data
@@ -735,7 +735,9 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
     featuresets = featuresets+1
   }
   
+  #TODO: fix!
   pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
+  #pp_total <- cbind(featureVector$drugexposures, featureVector$visits[,colnames(featureVector$visits!='pid')], featureVector$labs)
   
   message("Features merged")
   

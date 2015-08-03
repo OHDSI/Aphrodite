@@ -2,11 +2,10 @@ DBMS:
 postgresql
 
 Error:
-org.postgresql.util.PSQLException: ERROR: column a.value_as_concept does not exist
-  Position: 166
+RcallMethod: attempt to call a method of a NULL object.
 
 SQL:
-SELECT A.measurement_id, A.person_id, A.measurement_date as date, A.measurement_type_concept_id, A.measurement_concept_id as concept_id, A.value_as_number as value, A.value_as_concept, B.concept_name FROM ohdsiv5.measurement as A, ohdsiv5.concept as B WHERE A.person_id=1219113 AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462 AND A.measurement_concept_id=B.concept_id;
+SELECT A.year_of_birth FROM ohdsiv5.person as A WHERE A.person_id=238228;
 
 R version:
 R version 3.1.2 (2014-10-31)
@@ -25,6 +24,7 @@ Attached base packages:
 - base
 
 Other attached packages:
+- gridExtra (2.0.0)
 - reshape2 (1.4.1)
 - dbConnect (1.0)
 - gWidgets (0.0-54)
