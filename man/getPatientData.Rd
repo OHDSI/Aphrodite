@@ -4,14 +4,16 @@
 \alias{getPatientData}
 \title{This function fetches all the patient data (generic)}
 \usage{
-getPatientData(connection, dbms, patient_ids, flags, schema)
+getPatientData(connection, dbms, patient_ids, keywords, flags, schema)
 }
 \arguments{
 \item{connection}{The connection to the database server.}
 
 \item{dbms}{The target DBMS for SQL to be rendered in.}
 
-\item{patient_ids}{The list of case patient id's to extract data from.}
+\item{patient_ids}{The list of case patient id's to extract data from - NOT a data.frame.}
+
+\item{keywords}{The list of concept_id's that are NOT wanted to be used as features}
 
 \item{flags}{The R dataframe that contains all feature/model flags
 specified in settings.R.}

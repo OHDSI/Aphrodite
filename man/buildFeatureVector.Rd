@@ -16,7 +16,7 @@ specified in settings.R.}
 }
 \value{
 An object containing the flattened feature vectors for all given
-feature sets.
+feature sets. Of form: list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
 }
 \description{
 This function builds a feature vector using raw patient data.

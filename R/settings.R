@@ -55,22 +55,56 @@ nControls = 20 #Number of patients to use as controls
 aphrodite_concept_name <- "myocardial infarction"
 
 #### Flags ###
-flag <- data.frame(drugexposures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE)
+flag <- data.frame(drugexposures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE, remove_domains=(""), timeWindowOpt=integer(1), threshCutoff = .02, timeNormalize=integer(1))
 flag$drugexposures[1]=1   #Use drug_exposures as features  (1 yes, 0 no)
 flag$observations[1]=1    #Use observations as features  (1 yes, 0 no)
 flag$visits[1]=1          #Use visits () as features  (1 yes, 0 no)
 flag$labs[1]=0            #Use labs as features  (1 yes, 0 no)
 
+### Options to define range of feature variables for cases
+# Time window from which to grab features
+flag$timeWindowOpt[1] <- 1
+# 1=go time of first keyword appearance in notes --> last keyword appearance
+# 2=go 10 years before first keyword appearance --> first keyword appearance
+
+# Filter for feature inclusion - discard any features found in less than threshCutoff proportion of sample set
+flag$threshCutoff[1] <- 0.05
+
+# Normalize by the length of patient follow-up
+flag$timeNormalize[1] <- 0
+# 0 = no normalization
+# 1 = normalize by length of patient follow-up in terms of years (if only a single visit, divide by 1 year)
+# 2 = normalize by length of patient follow-up in terms of months (if only a single visit, divide by 1 month)
+# 3 = normalize by number of visits
+# 4 = normalize by number of measurement codes, in that category
+
+
+
 ### Save intermediate Results Flag ###
 saveALLresults=1   # There is a cleaning function to remove all intermediate results
 
 ### Type of model to build  ###
-flag$model[1] <-'LASSO' # Available types: LASSO - mode will be added in the future
+# Available types:
+# LASSO = logistic regression with elastic net regularization (optimizes over elastic net parameter, alpha; 0=ridge regularization=L2 norm, 1=lasso regularization=L1 norm)
+# RF = random forest
+flag$model[1] <-'LASSO'
+
+
+
 ### How to use features ###
 flag$features_mode[1] <- 'frequency'   #Can be Boolean or frequency - boolean only requires presence and frequency keeps the counts
+
+flag$remove_domains[1] <- ("'Unit'") # can choose whether to remove concept domains if finding irrelevant features
+# e.g. flag$remove_domains[1] <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")
+
+
+##################################################################################
+### Plots                                                                      ###
+##################################################################################
 ### Do we want to plot the AUOC and Top Variables plots ###
 plots=1
-
+### How many features to include in top variables plot
+numFeats <- 30
 ##################################################################################
 ### Predictions file - This is only needed when you are testing a built model. ###
 ##################################################################################

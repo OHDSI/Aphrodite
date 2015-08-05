@@ -244,14 +244,14 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     patientFeatures_labs_df<- list()
 
     removeDomains <- flags$remove_domains[1]
-    
+
     for (patientQueue in 1:(length(patient_ids))) {
         patients_list_df<- list()
 
-        #NOW: just looks at keywords. 
+        #NOW: just looks at keywords.
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
-        
-        #NOW:just looks at keywords. 
+
+        #NOW:just looks at keywords.
         patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
@@ -268,10 +268,10 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
             dateStart$year <- dateStart$year - 10
             dateStart <- as.Date(dateStart)
         }
-        
+
         # get normalization term
         timeDiff <- getNormalizationTerm(dates, flags)
-           
+
         #Using the data extract all patient data for the cases
 
         if (flags$drugexposures[1]) {
@@ -302,15 +302,15 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
             rm('tmp_fv')
         }
         if (flags$labs[1])  {
-          
+
           tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id=B.concept_id AND A.measurement_date >='",as.character(dateStart),"' AND A.measurement_date <='",as.character(dateEnd),"' AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
           tmp_fv$concept_id <- paste(tmp_fv$measurement_concept_id, tmp_fv$value_as_concept_id, sep=":")
           test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
-          
+
           #COMMENTS RELEVANT TO OLD CODE:
             # safety catches - now addressed within sql query
             #Remove lab values that did not map properly
-            #0 is concept code for "no matching value" - removes these 
+            #0 is concept code for "no matching value" - removes these
             # [changed these to measurement_concept_id rather than measurement_type_concept_id - this seems to make more sense]
             #uncomment if remove from sql query: tmp_fv<-tmp_fv[!(tmp_fv$measurement_concept_id=="0"),]
             #Remove lab values that have a measurement of NONE
@@ -338,7 +338,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 #'
 #' @param tmp_fv          Pull from sql query.  Should have a column for date and concept_id
 #' @param flags          Flags set in settings - specifies which normalization is needed
-#' @param timeDiff        Value to use for normalization 
+#' @param timeDiff        Value to use for normalization
 #'
 #' @details This is just a helper function that reduces the repeats of code for the manipulation of the sql extract data, so that it is put in the desired format for compiling all patient features together.  This function: gets the counts of codes on a given visit (so multiple codes/terms/drugs/etc are not all counted); normalizes based on the normalization setting; returns a data frame with counts of codes
 #'
@@ -352,16 +352,16 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 #'
 #' @export
 manipulateSqlPull <- function(tmp_fv, flags, timeDiff) {
-  
-      if (nrow(tmp_fv) >0) { 
+
+      if (nrow(tmp_fv) >0) {
           # I don't think this takes into account multiple terms on the same date:
           # test1<-aggregate( drug_exposure_id ~ drug_concept_id, tmp_fv, function(x) length(unique(x)))
-          # replace with: 
+          # replace with:
           ptData <- as.data.table(tmp_fv)
           byDate <- dcast.data.table(ptData, date ~ concept_id, fun=function(x) {if (length(x)>0) {1} else {0}}, value.var='concept_id')  # counts each code just once per visit
           #byDate2 <- dcast.data.table(ptData, drug_exposure_start_date ~ drug_concept_id, fun=length)  # if you want to keep the counts per visit
           byDate <- as.data.frame(byDate)
-          
+
           # get sums of counts across dates (counts are deduplicated by date)
           if (ncol(byDate)>2) {
               byDateSum <- as.data.frame(colSums(byDate[,colnames(byDate)!='date']))
@@ -371,8 +371,8 @@ manipulateSqlPull <- function(tmp_fv, flags, timeDiff) {
           }
           colnames(byDateSum) <- c("counts")
           byDateSum$concept_id <- rownames(byDateSum)
-          
-          # normalize data 
+
+          # normalize data
           if (flags$timeNormalize[1]==4) {
               # if normalizing by the number of measurements
               timeDiff <- sum(byDateSum$counts)
@@ -385,12 +385,7 @@ manipulateSqlPull <- function(tmp_fv, flags, timeDiff) {
           
           test1 <- data.frame(t(byDateSum$counts))
           colnames(test1) <- byDateSum$concept_id
-          
-          # change columns to rows & clean
-          #test1<-data.frame(t(test1))     # transpose
-          #colnames(test1)[!is.na(test1[rownames(test1)=='concept_id',])] <- test1[rownames(test1)=='concept_id',][!is.na(test1[rownames(test1)=='concept_id',])]    #put concept IDs as column names 
-          #test1 <- test1[rownames(test1)=='counts',,drop=FALSE]   # keep only the counts
-          
+
       } else {
         # If no data
             test1 <- data.frame(t(data.frame(x = numeric(0))))
@@ -412,7 +407,7 @@ manipulateSqlPull <- function(tmp_fv, flags, timeDiff) {
 #'
 #' @details Depending upon the input settings, will return the normalizing term for the feature values.  Some normalization settings depend upon the specific feature type; these are addressed within the individual feature types.  This is a helper function for getPatientData
 #'
-#' @return The value by which to divide term counts 
+#' @return The value by which to divide term counts
 #'
 #' @examples \dontrun{
 #'
@@ -432,7 +427,7 @@ getNormalizationTerm <- function (dates, flags, defaultTime=1) {
               # time diff in years
               timeDiff <- (as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365
           }
-        
+
       } else if (flags$timeNormalize[1]==2) {
           # if normalizing by length of follow-up in months
           if (length(dates$observation_date)<1) {
@@ -441,22 +436,22 @@ getNormalizationTerm <- function (dates, flags, defaultTime=1) {
               # time diff in months
               timeDiff <- ((as.numeric(max(dates$observation_date) - min(dates$observation_date)))/365)*12
           }
-          
+
       } else if (flags$timeNormalize[1]==3) {
           # if normalizing by the number of visits
           timeDiff <- nrow(unique(dates))
-        
+
       } else {
           # this includes both flags$timeNormalize[1]==0 --> no normalization AND flags$timeNormalize[1]==4 --> normalize by the number of measurements in the category (addressed within sections)
           # divide counts by 1 --> no normalization occurs
           timeDiff <- 1
       }
-      
+
       # adjust if no time difference
       if (timeDiff==0) {
           timeDiff <- defaultTime
       }
-      
+
       return (timeDiff)
 }
 
@@ -493,26 +488,26 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
-    
+
     # domains that we do not want to include as features
     removeDomains <- flags$remove_domains[1]
-    
+
     for (patientQueue in 1:(length(patient_ids))) {
-      
+
         patients_list_df<- list()
-        
+
         # get patient dates
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
-        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        
+        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
-      
+
         # get normalization term
         timeDiff <- getNormalizationTerm(dates, flags)
         message(timeDiff)
-      
+
         if (flags$drugexposures[1]) {
-            
+
             tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id as concept_id, A.drug_exposure_start_date as date, A.drug_type_concept_id, A.stop_reason, B.concept_name FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL  AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
 
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
@@ -532,7 +527,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
 
         }
         if (flags$visits[1]) {
-          
+
             tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
@@ -540,7 +535,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             rm('test1')
             rm('tmp_fv')
         }
-        if (flags$labs[1])  {  
+        if (flags$labs[1])  {
             tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date as date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id=B.concept_id AND A.measurement_id NOT IN (", paste(keywords,collapse=","), ") AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
             tmp_fv$concept_id <- paste(tmp_fv$measurement_concept_id, tmp_fv$value_as_concept_id, sep=":")
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
@@ -560,18 +555,18 @@ return (patientData)
 #' @description This function builds a feature matrix for a specific subset of features, e.g. labs/visits/observations/drug exposures.
 #' Returns a feature matrix with all features from all patients included.
 #'
-#' @param featuresType         A set of patient data in the form of a list of data frames.  Each data frame contains a pid to label the patient, the names of the features that the patient had present, and the frequency counts of these features in his/her record 
+#' @param featuresType         A set of patient data in the form of a list of data frames.  Each data frame contains a pid to label the patient, the names of the features that the patient had present, and the frequency counts of these features in his/her record
 #' @param key                  String descriptor of type of feature (e.g. "obs:" or "visit:"). This will be used to label the feature
-#' @param labIndic=0           Whether this is for a lab feature.  If so, must be converted from factor to numeric.  Default is 0=no conversion required; 1=conversion required. 
+#' @param labIndic=0           Whether this is for a lab feature.  If so, must be converted from factor to numeric.  Default is 0=no conversion required; 1=conversion required.
 #'
-#' @details This function takes a list of patient data frames as input.  Each patient's data frame contains the features that this patient has present in his/her record. This function flattens this information into the combined feature matrix, with all features (of a certain type - e.g. labs or visits) from all patients included.  Clearly, many patients will not have data for many features; their feature counts for any feature that was not present in their record will be set as 0. 
+#' @details This function takes a list of patient data frames as input.  Each patient's data frame contains the features that this patient has present in his/her record. This function flattens this information into the combined feature matrix, with all features (of a certain type - e.g. labs or visits) from all patients included.  Clearly, many patients will not have data for many features; their feature counts for any feature that was not present in their record will be set as 0.
 #'
 #' @return An data frame of (pts) x (features of input type)
 #'
 #' @examples \dontrun{
 #'
 #'  FV_converted<-convertFeatVecPortion(featuresType, 'obs:')
-#'  
+#'
 #'  #OR
 #'
 #'  FV_converted<-convertFeatVecPortion(featuresType, 'labs:', labIndic=1)
@@ -579,17 +574,17 @@ return (patientData)
 #' }
 #'
 #' @export
-convertFeatVecPortion <- function (featuresType, key, labIndic=0) {
-  
+convertFeatVecPortion <- function (featuresType, key, labIndic) {
+
   # combine all features into a single data table, with missing features replaced with NA
   featuresType_wNames <- lapply(featuresType, function(x) {x$pid <- rownames(x); x})
   FV_DT <- rbindlist(featuresType_wNames, use.names = TRUE, fill=TRUE)
-  
-  if (labIndic) {
+
+  #if (labIndic) {
     # labs are not all in numeric form, so must convert
     FV_DT <- FV_DT[, lapply(.SD, as.numeric), by=pid]
-  }
-  
+  #}
+
   # replace NAs with 0
   FV_DT <- FV_DT[, lapply(.SD, function(x) {x[is.na(x)] <- 0; x}), by=pid]
   FV <- as.data.frame(FV_DT)
@@ -646,38 +641,38 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
       featuresVISIT<-append(casesS$visits,controlsS$visits)
       featuresLABS <- append(casesS$labs, controlsS$labs)
   }
-   
+
   #We now flatten the vectors
   if (flags$observations[1]) {
-      FV_ob <-convertFeatVecPortion(featuresOB, 'obs:')
+      FV_ob <-convertFeatVecPortion(featuresOB, 'obs:',1)
       message("Obs done")
-  } else { 
+  } else {
       FV_ob <- NULL
   }
-  
+
   if (flags$visits[1]) {
-        FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:')
+        FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:',1)
         message("Visits done")
   } else {
       FV_v <- NULL
   }
-  
+
   if (flags$drugexposures[1]) {
-        FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:')
+        FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:',1)
         message("Drugs done")
   } else {
       FV_de <- NULL
   }
-  
+
   if (flags$labs[1]) {
-      FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', labIndic=1)
+      FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', 1)
       message("Labs done")
   } else {
       FV_lab <- NULL
   }
-  
+
   featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
-  
+
   message("Vectors flattened")
 return (featureVectors)
 
@@ -699,8 +694,8 @@ return (featureVectors)
 #' @param outcomeNameS  String description of the outcome for which the model is
 #'   being built [Not actually needed]
 #'
-#' @details This function builds a feature vector by concatenating all of the available datasets. 
-#' If binary features are specified in the settings, this conversion is made. 
+#' @details This function builds a feature vector by concatenating all of the available datasets.
+#' If binary features are specified in the settings, this conversion is made.
 #' The cases_pids and control_pids are patient_id's used for the labeling of
 #' the testing and training sets.
 #'
@@ -716,7 +711,7 @@ return (featureVectors)
 combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVector, outcomeNameS) {
   # Merge all dataframes/Feature vectors for the different sources and have a big list of them
   feature_vectors <- list()
-  
+
   featuresets=1
   if (flags$drugexposures[1]) {
     feature_vectors[[featuresets]]<-featureVector$drugexposures
@@ -734,30 +729,36 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
     feature_vectors[[featuresets]]<-featureVector$labs
     featuresets = featuresets+1
   }
+<<<<<<< HEAD
   
   #TODO: fix!
   pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
   #pp_total <- cbind(featureVector$drugexposures, featureVector$visits[,colnames(featureVector$visits!='pid')], featureVector$labs)
   
+=======
+
+  pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
+
+>>>>>>> upstream/master
   message("Features merged")
-  
+
   # Get class labels based on pids
   cases_pids <- sapply(cases_pids[[1]], function(z) as.character(z))
   controls_pids <- sapply(controls_pids[[1]], function(z) as.character(z))
   labels <- pp_total$pid %in% cases_pids
-  
+
   # Need to rename so that R will be happy with class labels
   labels <- replace(labels, labels==FALSE, 'F')
   labels <-replace(labels, labels==TRUE, 'T')
-  
+
   # Add labels to last column of feature vector
   #[for some reason it doesn't seem to like outcomeNameS here]
   pp_total$Class_labels <- labels
-  
-  # Get feature names 
+
+  # Get feature names
   charCols <- c("Class_labels", "pid")
   predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
-  
+
   # Convert to boolean if needed
   if (tolower(c(flags$features_mode[1])) == 'boolean') {
     #TODO write more cleanly
@@ -774,8 +775,8 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
   else {
     message("Check options settings for how to define features.  Continuing with default (frequency counts)")
   }
-  
-  
+
+
   # Filter to remove features found in less than 2% of patients
   ppv_bin <- pp_total[,predictorsNames]  # get numeric data
   ppv_bin[ppv_bin > 0] <- 1  # binarize
@@ -786,8 +787,8 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
   pp_final <- pp_total[,keepRows]
   pp_final$Class_labels <- pp_total$Class_labels
   pp_final$pid <- pp_total$pid
-  
-  
+
+
   return (pp_final)
 }
 
@@ -803,7 +804,7 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
 #' @param flags         The R dataframe that contains all feature/model flags
 #'   specified in settings.R.
 #' @param featureVector Flattened feature vector returned by combineFeatureVectors
-#'   function, with labeled cases and controls.  Assumed to have one column named "Class_labels" 
+#'   function, with labeled cases and controls.  Assumed to have one column named "Class_labels"
 #'   and one named "pid"
 #' @param outcomeNameS  String description of the outcome for which the model is
 #'   being built
@@ -821,8 +822,8 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
 #'
 #' @export
 buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
-    
-    # Get feature names again 
+
+    # Get feature names again
     charCols <- c("Class_labels", "pid")
     predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
 
@@ -839,7 +840,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     # create caret trainControl object to control the number of cross-validations performed
     #objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=twoClassSummary) - if want to use ROC for metric
     objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=f_score_calc)
-    
+
     message("Model about to be built")
     if (flags$model[1]=='LASSO') {
         # set parameter grid
@@ -852,7 +853,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
         rf_grid <- expand.grid(mtry=round(seq(.1*length(predictorsNames), .9*length(predictorsNames), length=6)))
         objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=rf_grid)
     }
-        
+
     # get predictions on held-out testing data
     # get prediction classes
     predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
@@ -860,7 +861,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     # get probabilities for each class
     probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
     auc <- roc(testLabels, probPreds[,1])
-    
+
     ###### Model Ouputs to file #############
     #sink(paste(saveFolder, flags$model[1], ' output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'.txt',sep=''))
     sink(paste(saveFolder, flags$model[1], '_output_',outcomeNameS,'.txt',sep=''))
@@ -879,7 +880,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     cat("\nGenerated on ")
     cat(format(Sys.time(), "%a %b %d %Y %X"))
     sink()
-    
+
     modelReturns <- list(model = objModel, predictorsNames = predictorsNames, auc)
     return (modelReturns)
 }
@@ -889,10 +890,10 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
 
 
 #' This function returns the concept terms corresponding to an input set of concept
-#' IDs.  
+#' IDs.
 #'
 #' @description This function returns the concept terms corresponding to an input set of concept
-#' IDs.  
+#' IDs.
 #'
 #' @param connection    The connection to the database server.
 #' @param schema        The database schema being used
@@ -913,7 +914,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
 #'
 #' @export
 conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
-  
+
   # get model rankings
   modelRankDetails <- varImp(model, scale=F)  # if leave scale as true, give feature weightings scaled from 0-100 (we want to keep sign of weightings)
   featImps <- modelRankDetails$importance
@@ -922,21 +923,21 @@ conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
   # put data into df
   #TODO address different labeling for labs
   featImpDF <- data.frame(type=sapply(ids, function(x) unlist(strsplit(x, ":"))[1]), ids=sapply(ids, function(x) unlist(strsplit(x, ":"))[2]), importance=featImps$Overall, absImportance=abs(featImps$Overall))
-  
+
   # sort by abs value
   featImpDF <- featImpDF[with(featImpDF, order(-absImportance)), ]
-  
+
   # return selection
   selection <- featImpDF[1:numFeats,]
   selection$rank <- c(1:numFeats)
-  
+
   # make sql query
   concept_data <- sapply(selection$ids, function(x) executeSQL(connection, schema, paste("SELECT A.* FROM @cdmSchema.concept as A WHERE concept_id=",x,";", sep=""),dbms))
-  
+
   # add concepts to output
   selection$concepts <- as.character(concept_data[rownames(concept_data)=="concept_name",])
   selection$code_source <- as.character(concept_data[rownames(concept_data)=="vocabulary_id",])
-  
+
   return (selection)
 }
 
@@ -951,7 +952,7 @@ conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
 #' @param plotSaveFile        The name of the file to save
 #' @param weightingsDF        Data frame of the weightings with their labels
 #'
-#' @details This function returned predicted classes for the input patient list.  Use case: evaluate trained model on a set of gold-standard patients.  
+#' @details This function returned predicted classes for the input patient list.  Use case: evaluate trained model on a set of gold-standard patients.
 #'
 #' @return (none)
 #'
@@ -963,11 +964,11 @@ conceptDecoder <- function (connection, schema, dbms, model, numFeats) {
 #'
 #' @export
 plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
-  
+
   # plot
   labels.wrap  <- lapply(strwrap(weightingsDF$concept,50,simplify=F),paste,collapse="\n") # word wrap
   g<-ggplot(weightingsDF, aes(rank, importance))+
-    geom_point(color='firebrick') + 
+    geom_point(color='firebrick') +
     # TODO: why is bar (below) not working?
     #geom_bar(stat='identity', color="firebrick")+
     labs(x='', y="Feature Importance" , title=paste("Feature Importance for",studyName)) +
@@ -984,13 +985,13 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
 
 #' This function creates a summary metric for model training
 #'
-#' @description This function creates a new summary metric for model training, specific for unbalanced classes.  Inputs as specified in caret. 
+#' @description This function creates a new summary metric for model training, specific for unbalanced classes.  Inputs as specified in caret.
 #'
 #' @param data        A dataframe of the held-out example cases, with columns for 'obs', 'pred', 'T', 'F'.  'T' and 'F' have the probabilities of each of these classes
 #' @param lev        Outcome factor levels for model
 #' @param model       Character string of model used
 #'
-#' @details This function returns the F-score for model training optimization.  Beta is currently set at 2 - TODO: should make this edit-able in future version. 
+#' @details This function returns the F-score for model training optimization.  Beta is currently set at 2 - TODO: should make this edit-able in future version.
 #'
 #' @return f_score
 #'
@@ -1002,6 +1003,7 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
 #'
 #' @export
 f_score_calc <- function (data, lev=levels(data$obs), model=NULL) {
+<<<<<<< HEAD
       out <- c(twoClassSummary(data, lev = levels(data$obs), model = NULL))
       
       # get TP, FP, FN, FN
@@ -1014,6 +1016,20 @@ f_score_calc <- function (data, lev=levels(data$obs), model=NULL) {
       f_score <- ((1+beta^2)*TP) / ( (1+beta^2)*TP + (beta^2)*FN + FP)
       out <- c(out, Fscore=f_score)
       return(out)
+=======
+  out <- c(twoClassSummary(data, lev = levels(data$obs), model = NULL))
+
+  # get TP, FP, FN, FN
+  TN <- nrow(data[(data$obs==data$pred) & (data$obs=='F'),])
+  TP <- nrow(data[(data$obs==data$pred) & (data$obs=='T'),])
+  FP <- nrow(data[(data$obs!=data$pred) & (data$pred=='T'),])
+  FN <- nrow(data[(data$obs!=data$pred) & (data$pred=='F'),])
+
+  beta <- 5
+  f_score <- ((1+beta^2)*TP) / ( (1+beta^2)*TP + (beta^2)*FN + FP)
+  out <- c(out, Fscore=f_score)
+  return(out)
+>>>>>>> upstream/master
 }
 
 

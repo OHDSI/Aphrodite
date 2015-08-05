@@ -25,22 +25,32 @@
 # @author Juan M. Banda
 
 # Install necessary packages if needed, remove comments
-install.packages("devtools")
-install_github("ohdsi/Aphrodite")
+# install.packages("devtools")
+#install_github("ohdsi/Aphrodite")
+
 library(Aphrodite)
 library(SqlRender)
 library(plyr)
 library(caret)
 library(pROC)
+library(data.table)
 library(DatabaseConnector)
-folder = "/home/kniehaus/Aphrodite/" # Folder containing the R files and outputs, use forward slashes
+library(ggplot2)
+library(gridExtra)
+
+# Initiate connection to DB
+jdbcDrivers <<- new.env()
+folder = "/home/jmbanda/OHDSI/Aphrodite-TEMP/" # Folder containing the R files and outputs, use forward slashes
 setwd(folder)
 
-source("CopyOfsettings.R")   #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
+source("CopyOfsettings.R")  #Load your settings.R  - usually found in ../R/settings.R   - Don't forget to edit it
 
-#Initiate connection
+
 connectionDetails <- createConnectionDetails(dbms=dbms, server=server, user=user, password=pw, schema=cdmSchema, port=port)
 conn <- connect(connectionDetails)
+
+# load up files with keyword lists
+# load list of terms to ignore as features
 
 # STEP 1 - Generate Keywords
 wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
@@ -51,9 +61,8 @@ write.table(wordLists$ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote
 message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
 
 # Load Keyword list after editing
-keywordList_FF <- read.table('keywordlist_ed.tsv', sep="\t", header=FALSE)
-ignoreList_FF <- read.table('ignorelist_ed.tsv', sep="\t", header=FALSE)
-
+keywordList_FF <- read.table('keywordlist.tsv', sep="\t", header=FALSE)
+ignoreList_feat <- read.table('ignorelist.tsv', sep="\t", header=FALSE)
 
 # STEP 2 - Get cases, controls
 
@@ -76,41 +85,64 @@ if (saveALLresults) {
     write.table(controls, file=paste('controls.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
 }
 
-# STEP 3 - Get Patient Data
 
-#Cases needs its own function
-dataFcases <-getPatientDataCases(conn, dbms, cases, as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), flag , cdmSchema)
+# filename to use for saving case data
+dataFcases <- getPatientData(conn, dbms, cases, as.character(ignoreList_feat$V3), flag, cdmSchema)
 if (saveALLresults) {
     save(dataFcases,file=paste(studyName,"-RAW_FV_CASES_",as.character(nCases),".Rda",sep=''))
 }
 
-#Get Controls
-dataFcontrols <- getPatientData(conn, dbms, controls, flag , cdmSchema)
+##################################################################################
+### Get control data ###
+##################################################################################
+
+dataFcontrols <- getPatientData(conn, dbms, controls, as.character(ignoreList_feat$V3), flag, cdmSchema)
 if (saveALLresults) {
     save(dataFcontrols,file=paste(studyName,"-RAW_FV_CONTROLS_",as.character(nControls),".Rda",sep=''))
 }
 
-# Build feature vectors
+##################################################################################
+### Create feature vector ###
+##################################################################################
+
 fv_all<-buildFeatureVector(flag, dataFcases,dataFcontrols)
+
+
+
+
+fv_full_data <- combineFeatureVectors(flag, data.frame(cases), controls, fv_all, outcomeName)
+
+# save data
+
 if (saveALLresults) {
     save(fv_all,file=paste(studyName,"-FULL_FV_CASES_",as.character(nCases),"_CONTROLS_",as.character(nControls),".Rda",sep=''))
 }
+#    save(fv_all,file=paste(saveFolder,studyName,"_FULL_FV_pre.Rda",sep=''))
+#    save(fv_full_data,file=paste(saveFolder,studyName,"_FULL_FV_final.Rda", sep=''))
 
-# Step 4 - Build Model
 
-model_predictors <- buildModel(flag, cases, controls, fv_all, outcomeName)
 
-###### Save Model to file #############
+charCols <- c("Class_labels", "pid")
+predictorsNames <- colnames(fv_full_data)[!colnames(fv_full_data) %in% charCols]
+# check that all data is real
+max(fv_full_data[,predictorsNames])
+fullFeatDist <- as.numeric(unlist(fv_full_data[,predictorsNames]))
+
+
+##################################################################################
+### Create model ###
+##################################################################################
+
+model_predictors <- buildModel(flag, fv_full_data, outcomeName, folder)
 model<-model_predictors$model
-predictors<-model_predictors$predictors
-
-save(model, file=paste(flag$model[1], " MODEL FILE FOR ",outcomeName,".Rda",sep=''))
+predictorsNames<-model_predictors$predictorsNames
+auc <- model_predictors$auc
+# save model
+save(model, file=paste(folder,studyName,'_model_', flag$model[1], '_', outcomeName,".Rda",sep=''))
 #Save Predictors for model
-save(predictors, file=paste(flag$model[1], " PREDICTORS FOR ",outcomeName,".Rda",sep=''))
+save(predictorsNames, file=paste(folder,studyName,'_predictors_',flag$model[1], '_', outcomeName, ".Rda",sep=''))
 
-#Close connection
 dbDisconnect(conn)
-
 
 
 
