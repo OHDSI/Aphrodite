@@ -2,10 +2,11 @@ DBMS:
 postgresql
 
 Error:
-RcallMethod: attempt to call a method of a NULL object.
+org.postgresql.util.PSQLException: ERROR: column "hypercholesterolemia" does not exist
+  Position: 60
 
 SQL:
-SELECT A.year_of_birth FROM ohdsiv5.person as A WHERE A.person_id=238228;
+SELECT A.* FROM ohdsiv5.concept as A WHERE A.concept_name =hypercholesterolemia;
 
 R version:
 R version 3.1.2 (2014-10-31)

@@ -849,7 +849,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
       objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet", metric = "Fscore", trControl=objControl, tuneGrid=lr_grid)
     } else if (flags$model[1]=='RF') {
         # run random forest model
-        rf_grid <- expand.grid(mtry=round(seq(.01*length(predictorsNames), .9*length(predictorsNames), length=6)))
+        rf_grid <- expand.grid(mtry=round(seq(.1*length(predictorsNames), .9*length(predictorsNames), length=6)))
         objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=rf_grid)
     }
         
@@ -1002,18 +1002,18 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
 #'
 #' @export
 f_score_calc <- function (data, lev=levels(data$obs), model=NULL) {
-  out <- c(twoClassSummary(data, lev = levels(data$obs), model = NULL))
-  
-  # get TP, FP, FN, FN
-  TN <- nrow(data[(data$obs==data$pred) & (data$obs=='F'),])
-  TP <- nrow(data[(data$obs==data$pred) & (data$obs=='T'),])
-  FP <- nrow(data[(data$obs!=data$pred) & (data$pred=='T'),])
-  FN <- nrow(data[(data$obs!=data$pred) & (data$pred=='F'),])
-  
-  beta <- 5
-  f_score <- ((1+beta^2)*TP) / ( (1+beta^2)*TP + (beta^2)*FN + FP)
-  out <- c(out, Fscore=f_score)
-  return(out)
+      out <- c(twoClassSummary(data, lev = levels(data$obs), model = NULL))
+      
+      # get TP, FP, FN, FN
+      TN <- nrow(data[(data$obs==data$pred) & (data$obs=='F'),])
+      TP <- nrow(data[(data$obs==data$pred) & (data$obs=='T'),])
+      FP <- nrow(data[(data$obs!=data$pred) & (data$pred=='T'),])
+      FN <- nrow(data[(data$obs!=data$pred) & (data$pred=='F'),])
+      
+      beta <- 5
+      f_score <- ((1+beta^2)*TP) / ( (1+beta^2)*TP + (beta^2)*FN + FP)
+      out <- c(out, Fscore=f_score)
+      return(out)
 }
 
 
