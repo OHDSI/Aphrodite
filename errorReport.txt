@@ -2,11 +2,11 @@ DBMS:
 postgresql
 
 Error:
-org.postgresql.util.PSQLException: ERROR: column "hypercholesterolemia" does not exist
-  Position: 60
+org.postgresql.util.PSQLException: ERROR: column "na" does not exist
+  Position: 55
 
 SQL:
-SELECT A.* FROM ohdsiv5.concept as A WHERE A.concept_name =hypercholesterolemia;
+SELECT A.* FROM ohdsiv5.concept as A WHERE concept_id=NA;
 
 R version:
 R version 3.1.2 (2014-10-31)
@@ -25,6 +25,8 @@ Attached base packages:
 - base
 
 Other attached packages:
+- gdata (2.17.0)
+- plot3D (1.0-2)
 - gridExtra (2.0.0)
 - reshape2 (1.4.1)
 - dbConnect (1.0)
