@@ -790,32 +790,6 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
 
 
 
-#' This function adds age and gender to the feature vector for each patient
-#'
-#' @description This function adds age and gender to the feature vector for each patient
-#'
-#' @param featureVector Flattened feature vector returned by combineFeatureVectors
-#'   function, with labeled cases and controls.  Assumed to have one column named "Class_labels"
-#'   and one named "pid"
-#' @param outcomeNameS  String description of the outcome for which the model is
-#'   being built
-#'
-#' @details This function adds age and gender to the feature vector for each patient
-#'
-#' @return featureVector + column for age and gender
-#'
-#' @examples \dontrun{
-#'
-#'  featureVector_updated <- addAgeGender(featureVector, conn, cdmSchema, dbms)
-#'
-#' }
-#'
-#' @export
-addAgeGender <- function (FV, conn, cdmSchema, dbms) {
-      pids <- FV$pid
-      ages <- sapply(pids, function(pid) {executeSQL(conn, cdmSchema, paste("SELECT A.person_id, A.gender_concept_id, B.concept_name, A.year_of_birth FROM @cdmSchema.person as A, @cdmSchema.concept as B WHERE A.person_id='", as.character(pid), "' AND A.gender_concept_id=B.concept_id;",sep=''), dbms);})
-      
-}
 
 
 #' This function builds a model for the specified feature vector using cases and
@@ -832,6 +806,7 @@ addAgeGender <- function (FV, conn, cdmSchema, dbms) {
 #'   and one named "pid"
 #' @param outcomeNameS  String description of the outcome for which the model is
 #'   being built
+#' @param saveFolder   folder in which summary file output will be saved
 #'
 #' @details This function builds a model for the specified outcomeName. The
 #' model is specified in the flags dataframe (currently only supports LASSO).
@@ -881,7 +856,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     # get predictions on held-out testing data
     # get prediction classes
     predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
-    modelPerfSummary <- confusionMatrix(predictions, testLabels)
+    modelPerfSummary <- confusionMatrix(predictions, testLabels, positive='T')
     # get probabilities for each class
     probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
     auc <- roc(testLabels, probPreds[,1])
@@ -912,315 +887,6 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
 
 
 
-#' This function builds a model for the specified feature vector using cases and
-#' controls for a certain outcomeName
-#'
-#' @description This function builds a model for the specified feature vector
-#' using cases and controls for a certain outcomeName. Returns a caret trained
-#' model.
-#'
-#' @param flags         The R dataframe that contains all feature/model flags
-#'   specified in settings.R.
-#' @param featureVector Flattened feature vector returned by combineFeatureVectors
-#'   function, with labeled cases and controls.  Assumed to have one column named "Class_labels"
-#'   and one named "pid"
-#' @param outcomeNameS  String description of the outcome for which the model is
-#'   being built
-#'
-#' @details This function builds a model for the specified outcomeName. The
-#' model is specified in the flags dataframe (currently only supports LASSO).
-#'
-#' @return An transferable caret Model object
-#'
-#' @examples \dontrun{
-#'
-#'  model_predictors <- buildModel_noTestSet(flag, fv_all, predictorsNames, outcomeName, saveFolder)
-#'
-#' }
-#'
-#' @export
-buildModel_noTestSet <- function (flags, pp_total, outcomeNameS, saveFolder, extraPts=1) {
-      
-      # Get feature names again
-      charCols <- c("Class_labels", "pid")
-      predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
-      
-      K <- 5
-      foldIndex <- createFolds(pp_total$Class_labels, k=K, list=FALSE)
-      
-      aucs <- list()
-      # go through x-validation folds
-      for (i in 1:K)  {
-            trainDF <- pp_total[foldIndex!=i,]
-            testDF <- pp_total[foldIndex==i,]
-            trainLabels <- pp_total$Class_labels[foldIndex!=i]
-            testLabels <- pp_total$Class_labels[foldIndex==i]
-            ################################################
-            # build model                                ##
-            ################################################
-            # split data into training and testing chunks
-            #set.seed(567)
-#             splitIndex <- createDataPartition(subset$Class_labels, p = .75, list = FALSE, times = 1)
-#             trainDF <- subset[splitIndex,]
-#             testDF  <- subset[-splitIndex,]
-#             trainLabels <- subset$Class_labels[splitIndex]
-#             testLabels <- subset$Class_labels[-splitIndex]
-            # create caret trainControl object to control the number of cross-validations performed
-            #objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=twoClassSummary) - if want to use ROC for metric
-            objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=f_score_calc)
-            
-            message("Model about to be built")
-            if (flags$model[1]=='LASSO') {
-                  # set parameter grid
-                  lr_grid <- expand.grid(alpha = seq(0,1,length=10), lambda = seq(0.001, 2, length=10))
-                  # run lasso LR model
-                  #TODO: find out when preprocessing happens in the code (ie, just on training set during cv, or applied to all the data? preProcess=c("center", "scale") ) - I think applied to all data
-                  objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet", metric = "Fscore", trControl=objControl)#, tuneGrid=lr_grid)
-            } else if (flags$model[1]=='RF') {
-                  # run random forest model
-                  rf_grid <- expand.grid(mtry=round(seq(.1*length(predictorsNames), .9*length(predictorsNames), length=6)))
-                  objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=rf_grid)
-            }
-            
-            
-            if (extraPts!=1) {
-                  testData <- rbind(testDF[, predictorsNames], extraPts[,predictorsNames])
-                  #testLabels <- rbind(testDF$Class_labels, extraPts$Class_labels)
-                  testLabels <- rbind(data.frame(CL=testDF$Class_labels), data.frame(CL=extraPts$Class_labels))
-                  message(testLabels)
-                  testLabels <- testLabels$CL
-            } else {
-                  testData <- testDF[,predictorsNames]
-            }
-            
-            
-            # get predictions on held-out testing data
-            # get prediction classes
-            predictions <- predict.train(object=objModel, newdata=testData, type='raw')
-            modelPerfSummary <- confusionMatrix(predictions, testLabels)
-            # get probabilities for each class
-            probPreds <- predict(objModel, newdata=testData, type='prob')
-            new_auc <- roc(testLabels, probPreds[,1])
-            aucs[i] <- new_auc$auc
-            
-            ###### Save curves #############
-            rocSaveFile <- paste(saveFolder, "ROC_", outcomeName, "_", i, ".png", sep='')
-            myData <- data.frame(spec=new_auc$specificities, sens=new_auc$sensitivities, thresh=new_auc$thresholds)
-            g<- ggplot()
-            g <- g + geom_point(data=myData, aes(x=1-spec, y=sens), color="Darkblue")
-            g <- g + geom_path(data=myData, aes(x=1-spec, y=sens), color="Darkblue")
-            g <- g + labs(x="1-Specificity", y="Sensitivity")#, title=myTitle)
-            g <- g + geom_abline(intercept = 0, slope = 1, color="grey")   # put diagonal
-            g <- g + theme(text = element_text(size=20))
-            g
-            ggsave(rocSaveFile, dpi=600)
-            
-            
-            # Make precision/recall
-            prSaveFile <- paste(saveFolder, "PR_", outcomeName, "_", i, ".png", sep='')
-            pred <- prediction(probPreds$T, as.logical(testLabels))
-            plot.pr <- performance(pred, "prec", "rec")
-            #plot(plot.pr)
-            precision <- pred@tp[[1]]/(pred@tp[[1]] + pred@fp[[1]])
-            recall <- pred@tp[[1]]/(pred@tp[[1]] + pred@fn[[1]])
-            myData2 <- data.frame(prec=precision, rec=recall)
-            g<- ggplot()
-            g <- g + geom_point(data=myData2, aes(x=rec, y=prec), color="Darkblue")
-            g <- g + geom_path(data=myData2, aes(x=rec, y=prec), color="Darkblue")
-            g <- g + labs(x="Recall", y="Precision")#, title=myTitle)
-            g <- g + theme(text = element_text(size=20))
-            g
-            ggsave(prSaveFile, dpi=600)
-            
-            
-            ###### Model Ouputs to file #############
-            #sink(paste(saveFolder, flags$model[1], ' output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'_', i, '.txt',sep=''))
-            sink(paste(saveFolder, flags$model[1], '_output_',outcomeNameS,'_', i, '.txt',sep=''))
-            #cat(paste('Results for ',  flags$model[1], 'Model for-',outcomeNameS,' using ',as.character(nCases),' Cases and ',as.character(nControls),' Controls. \n\n',sep=''))
-            cat(paste('Results for ', flags$model[1], ' Model for-',outcomeNameS,' using ',as.character(nControls),' Controls. \n\n',sep=''))
-            cat("\nModel Summary \n \n")
-            # find out variable importance
-            print(summary(objModel))
-            # print model performance
-            print(modelPerfSummary)
-            # find out model details
-            cat("\nModel Details \n \n")
-            print(objModel)
-            cat("\n")
-            print(varImp(objModel, scale=F, top=20))
-            cat("\nGenerated on ")
-            cat(format(Sys.time(), "%a %b %d %Y %X"))
-            sink()
-            
-            
-            
-      }
-      modelReturns <- list(meanAUC = mean(as.numeric(aucs)), stdAUC = sd(as.numeric(aucs)), allAUCs=aucs)
-      return (modelReturns)
-}
-
-
-
-#' This function builds a model for the specified feature vector using cases and
-#' controls for a certain outcomeName
-#'
-#' @description This function builds a model for the specified feature vector
-#' using cases and controls for a certain outcomeName. Returns a caret trained
-#' model.
-#'
-#' @param flags         The R dataframe that contains all feature/model flags
-#'   specified in settings.R.
-#' @param featureVector Flattened feature vector returned by combineFeatureVectors
-#'   function, with labeled cases and controls.  Assumed to have one column named "Class_labels"
-#'   and one named "pid"
-#' @param outcomeNameS  String description of the outcome for which the model is
-#'   being built
-#'
-#' @details This function builds a model for the specified outcomeName. The
-#' model is specified in the flags dataframe (currently only supports LASSO).
-#'
-#' @return An transferable caret Model object
-#'
-#' @examples \dontrun{
-#'
-#'  model_predictors <- buildModel_limFeat(flag, fv_all, predictorsNames, outcomeName, saveFolder)
-#'
-#' }
-#'
-#' @export
-buildModel_limFeat <- function (flags, pp_total, outcomeNameS, saveFolder) {
-      
-      # Get feature names again
-      charCols <- c("Class_labels", "pid")
-      predictorsNames <- colnames(pp_total)[!colnames(pp_total) %in% charCols]
-      
-      K <- 3
-      foldIndex <- createFolds(pp_total$Class_labels, k=K, list=FALSE)
-      
-      aucs <- list()
-      # go through x-validation folds
-      for (i in 1:K)  {
-            subset <- pp_total[foldIndex==i,]
-            ################################################
-            # build model                                ##
-            ################################################
-            # split data into training and testing chunks
-            #set.seed(567)
-            splitIndex <- createDataPartition(subset$Class_labels, p = .75, list = FALSE, times = 1)
-            trainDF <- subset[splitIndex,]
-            testDF  <- subset[-splitIndex,]
-            trainLabels <- subset$Class_labels[splitIndex]
-            testLabels <- subset$Class_labels[-splitIndex]
-            
-            
-            # make iterations for featImpt loop
-            caseTrain <- trainDF[trainDF$Class_label=="T",]
-            controlTrain <- trainDF[trainDF$Class_label=="F",]
-            allWeightings <- list()
-            nFeatIts <- 10
-            for (i in 1:nFeatIts) {
-                  # get control sample
-                  controlSample <- controlTrain[sample(nrow(controlTrain),featSelSize),]
-                  trainSample <- rbind(caseTrain, controlSample)
-            
-                  # create caret trainControl object to control the number of cross-validations performed
-                  #objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=twoClassSummary) - if want to use ROC for metric
-                  objControl <- trainControl(method='cv', number=5, returnResamp='none', classProbs=TRUE, summaryFunction=f_score_calc)
-                  
-                  message("Model about to be built")
-                  if (flags$model[1]=='LASSO') {
-                        # set parameter grid
-                        lr_grid <- expand.grid(alpha = seq(0,1,length=10), lambda = seq(0.001, 2, length=10))
-                        # run lasso LR model
-                        #TODO: find out when preprocessing happens in the code (ie, just on training set during cv, or applied to all the data? preProcess=c("center", "scale") ) - I think applied to all data
-                        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="glmnet", metric = "Fscore", trControl=objControl)#, tuneGrid=lr_grid)
-                  } else if (flags$model[1]=='RF') {
-                        # run random forest model
-                        rf_grid <- expand.grid(mtry=round(seq(.1*length(predictorsNames), .9*length(predictorsNames), length=6)))
-                        objModel <- train(x=trainDF[,predictorsNames], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=rf_grid)
-                  }
-                  
-                  # get high features
-                  if (numFeats>ncol(fv_full_data)) {
-                        numFeatsAdj <- length(predictorsNames)
-                  } else {
-                        numFeatsAdj <- numFeats
-                  }
-                  high_ranking_concepts <- conceptDecoder(connection, schema, dbms, model, numFeatsAdj)
-                  high_ranking_concepts$concept_id <- rownames(high_ranking_concepts)
-                  allWeightings[[i]] <- high_ranking_concepts
-            }
-            
-            
-            # Process features
-            cutoff <- .9*maxIts # number of subsamplings in which term must appear
-            # combine terms together
-            allFeats <- rbindlist(allWeightings)
-            # put into buckets
-            # NOTE - for labs, some will add up to double the number of iterations because in twice for high/low/medium options
-            interm <- dcast.data.table(allFeats, concept_id~rank, value.var='rank', fun=length)
-            # sum
-            featCols <- colnames(interm)[colnames(interm)!='concept_id']
-            interm <- as.data.frame(interm)
-            totalCounts <- data.frame(concepts=interm$concept_id, sum=rowSums(interm[,featCols]))
-            # order
-            totalCounts <- totalCounts[with(totalCounts, order(-sum)), ]
-            # select
-            keepFeats <- totalCounts[totalCounts$sum>cutoff,]
-            
-            
-            # train again using just those features
-            if (flags$model[1]=='LASSO') {
-                  # set parameter grid
-                  lr_grid <- expand.grid(alpha = seq(0,1,length=10), lambda = seq(0.001, 2, length=10))
-                  # run lasso LR model
-                  #TODO: find out when preprocessing happens in the code (ie, just on training set during cv, or applied to all the data? preProcess=c("center", "scale") ) - I think applied to all data
-                  objModel <- train(x=trainDF[,keepFeats], y=factor(trainLabels), method="glmnet", metric = "Fscore", trControl=objControl)#, tuneGrid=lr_grid)
-            } else if (flags$model[1]=='RF') {
-                  # run random forest model
-                  rf_grid <- expand.grid(mtry=round(seq(.1*length(keepFeats), .9*length(keepFeats), length=6)))
-                  objModel <- train(x=trainDF[,keepFeats], y=factor(trainLabels), method="rf",metric = "Fscore", trControl=objControl, tuneGrid=rf_grid)
-            }
-            
-            # get prediction classes
-            predictions <- predict.train(object=objModel, newdata=testDF[,keepFeats], type='raw')
-            modelPerfSummary <- confusionMatrix(predictions, testLabels)
-            # get probabilities for each class
-            probPreds <- predict(objModel, newdata=testDF[,keepFeats], type='prob')
-            new_auc <- roc(testLabels, probPreds[,1])
-            aucs[i] <- new_auc$auc
-            
-            
-            ###### Model Ouputs to file #############
-            #sink(paste(saveFolder, flags$model[1], ' output for-',outcomeNameS,'-Cases-',as.character(nCases),'-Controls-',as.character(nControls),'_', i, '.txt',sep=''))
-            sink(paste(saveFolder, flags$model[1], '_output_',outcomeNameS,'.txt',sep=''))
-            #cat(paste('Results for ',  flags$model[1], 'Model for-',outcomeNameS,' using ',as.character(nCases),' Cases and ',as.character(nControls),' Controls. \n\n',sep=''))
-            cat(paste('Results for ', flags$model[1], ' Model for-',outcomeNameS,' using ',as.character(nControls),' Controls. \n\n',sep=''))
-            cat("\nModel Summary \n \n")
-            # find out variable importance
-            print(summary(objModel))
-            # print model performance
-            print(modelPerfSummary)
-            # find out model details
-            cat("\nModel Details \n \n")
-            print(objModel)
-            cat("\n")
-            print(varImp(objModel, scale=F, top=20))
-            cat("\nGenerated on ")
-            cat(format(Sys.time(), "%a %b %d %Y %X"))
-            sink()
-            
-            
-            
-      }
-      modelReturns <- list(meanAUC = mean(as.numeric(aucs)), stdAUC = std(as.numeric(aucs)), allAUCs=aucs)
-      return (modelReturns)
-}
-
-
-
-
-
 #' This function returns the concept terms corresponding to an input set of concept
 #' IDs.
 #'
@@ -1232,6 +898,10 @@ buildModel_limFeat <- function (flags, pp_total, outcomeNameS, saveFolder) {
 #' @param dbms          The target DBMS for SQL to be rendered in.
 #' @param model         The model object; will be used to extract top-ranking features
 #' @param numFeats      The number of features you'd like returned
+#' @param breaker=":"       Which sort of breaker is used in feature names (e.g. for "obs:12345" it would be ":")
+#' @param typeInd1=1      Indice after string split defining which feature class (e.g. [1] for "obs:12345" defines obs)
+#' @param idInd=1       Indice after string split defining which concept_id (e.g. [2] for "obs:12345
+#'  defines "12345")
 #'
 #' @details This function returns the concept terms corresponding to an input set of concept
 #' IDs.  Use case: to investigate highly-ranked features from classification model
@@ -1247,36 +917,39 @@ buildModel_limFeat <- function (flags, pp_total, outcomeNameS, saveFolder) {
 #' @export
 conceptDecoder <- function (connection, schema, dbms, model, numFeats, breaker=':', typeInd=1, idInd=2) {
 
-  # get model rankings
-  modelRankDetails <- varImp(model, scale=F)  # if leave scale as true, give feature weightings scaled from 0-100 (we want to keep sign of weightings)
-  featImps <- modelRankDetails$importance
-  ids <-row.names(featImps)
-
-  # put data into df
-  #TODO address different labeling for labs
-  featImpDF <- data.frame(type=sapply(ids, function(x) unlist(strsplit(x, breaker))[typeInd]), ids=sapply(ids, function(x) unlist(strsplit(x, breaker))[idInd]), importance=featImps$Overall, absImportance=abs(featImps$Overall))
-
-  # sort by abs value
-  featImpDF <- featImpDF[with(featImpDF, order(-absImportance)), ]
-
-  # return selection
-  selection <- featImpDF[1:numFeats,]
-  selection$rank <- c(1:numFeats)
-  selection$ids <- as.character(selection$ids)
-  
-  # deal with age/gender variables
-  selection[selection$type=="age", colnames(selection)=="ids"] <- as.character(4265453)
-  selection[selection$type=="gender", colnames(selection)=="ids"] <- as.character(2)
-
-  # make sql query
-  concept_data <- sapply(selection$ids, function(x) executeSQL(connection, schema, paste("SELECT A.* FROM @cdmSchema.concept as A WHERE concept_id=",x,";", sep=""),dbms))
-
-  # add concepts to output
-  selection$concepts <- as.character(concept_data[rownames(concept_data)=="concept_name",])
-  selection$code_source <- as.character(concept_data[rownames(concept_data)=="vocabulary_id",])
-
-  return (selection)
+      # get model rankings
+      modelRankDetails <- varImp(model, scale=F)  # if leave scale as true, give feature weightings scaled from 0-100 (we want to keep sign of weightings)
+      featImps <- modelRankDetails$importance
+      ids <-row.names(featImps)
+      
+      # put data into df
+      #TODO address different labeling for labs
+      featImpDF <- data.frame(type=sapply(ids, function(x) unlist(strsplit(x, breaker))[typeInd]), ids=sapply(ids, function(x) unlist(strsplit(x, breaker))[idInd]), importance=featImps$Overall, absImportance=abs(featImps$Overall))
+      
+      # sort by abs value
+      featImpDF <- featImpDF[with(featImpDF, order(-absImportance)), ]
+      
+      # return selection
+      selection <- featImpDF[1:numFeats,]
+      selection$rank <- c(1:numFeats)
+      selection$ids <- as.character(selection$ids)
+      
+      # deal with age/gender variables
+      selection[selection$type=="age", colnames(selection)=="ids"] <- as.character(4265453)
+      selection[selection$type=="gender", colnames(selection)=="ids"] <- as.character(2)
+      
+      # make sql query
+      concept_data <- sapply(selection$ids, function(x) executeSQL(connection, schema, paste("SELECT A.* FROM @cdmSchema.concept as A WHERE concept_id=",x,";", sep=""),dbms))
+      
+      # add concepts to output
+      selection$concepts <- as.character(concept_data[rownames(concept_data)=="concept_name",])
+      selection$code_source <- as.character(concept_data[rownames(concept_data)=="vocabulary_id",])
+        
+      return (selection)
 }
+
+
+
 
 
 
@@ -1304,15 +977,6 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
 
   # plot
   labels.wrap  <- lapply(strwrap(weightingsDF$concept,50,simplify=F),paste,collapse="\n") # word wrap
-#   g<-ggplot(weightingsDF, aes(rank, importance))+
-#     geom_point(color='firebrick') +
-#     # TODO: why is bar (below) not working?
-#     #geom_bar(stat='identity', color="firebrick")+
-#     labs(x='', y="Feature Importance" , title=paste("Feature Importance for",studyName)) +
-#     scale_x_discrete(labels=labels.wrap) +
-#     theme(axis.text.x = element_text(labels.wrap, size=8, angle=90)) +
-#     #theme(axis.text.y = element_text(size=10))
-#     coord_flip()
       g <- ggplot(weightingsDF, aes(x=rank, y=importance))
       g <- g + geom_bar(stat='identity', color='firebrick', width=.5, fill='rosybrown4')
       g <- g + labs(x='', y="Feature Importance", title=paste("Feature Importance for",studyName))
@@ -1361,7 +1025,7 @@ f_score_calc <- function (data, lev=levels(data$obs), model=NULL) {
       TP <- nrow(data[(data$obs==data$pred) & (data$obs=='T'),])
       FP <- nrow(data[(data$obs!=data$pred) & (data$pred=='T'),])
       FN <- nrow(data[(data$obs!=data$pred) & (data$pred=='F'),])
-      message(paste(TN, ', ', TP, ', ', FP, ', ', FN))
+      #message(paste(TN, ', ', TP, ', ', FP, ', ', FN))
       beta <- 5
       f_score <- ((1+beta^2)*TP) / ( (1+beta^2)*TP + (beta^2)*FN + FP)
       out <- c(out, Fscore=f_score)
