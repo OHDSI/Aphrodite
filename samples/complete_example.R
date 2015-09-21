@@ -55,14 +55,14 @@ conn <- connect(connectionDetails)
 # STEP 1 - Generate Keywords
 wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 
-write.table(wordLists$keywordlist_ALL, file=paste('keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-write.table(wordLists$ignorelist_ALL, file=paste('ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$keywordlist_ALL, file=paste('keywordlistAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$ignorelist_ALL, file=paste('ignorelistAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
 
 message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
 
 # Load Keyword list after editing
-keywordList_FF <- read.table('keywordlist.tsv', sep="\t", header=FALSE)
-ignoreList_feat <- read.table('ignorelist.tsv', sep="\t", header=FALSE)
+keywordList_FF <- read.table('keywordlistAF.tsv', sep="\t", header=FALSE)
+ignoreList_FF <- read.table('ignorelistAF.tsv', sep="\t", header=FALSE)
 
 # STEP 2 - Get cases, controls
 
@@ -81,8 +81,8 @@ cases<- casesANDcontrolspatient_ids_df[[1]][sample(nrow(casesANDcontrolspatient_
 controls<- casesANDcontrolspatient_ids_df[[2]][sample(nrow(casesANDcontrolspatient_ids_df[[2]]), nControls), ]
 
 if (saveALLresults) {
-    write.table(cases, file=paste('cases.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-    write.table(controls, file=paste('controls.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+    write.table(cases, file=paste('casesAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+    write.table(controls, file=paste('controlsAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
 }
 
 
