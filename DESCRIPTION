@@ -1,10 +1,11 @@
 Package: Aphrodite
 Type: Package
 Title: Automated PHenotype Routine for Observational Definition Identification Training and Evaluation (APHRODITE) - Phenotype building tool using Fuzzy labels
-Version: 1.1
-Date: 2015-07-31
+Version: 1.2
+Date: 2015-09-21
 Author:
     Juan M. Banda [aut, cre],
+    Kate Niehaus [aut],
     Marc A. Suchard [aut],
     Martijn J. Schuemie [aut]
 Maintainer: Juan M. Banda <jmbanda@stanford.edu>
