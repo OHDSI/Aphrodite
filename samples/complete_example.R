@@ -28,9 +28,7 @@
 # install.packages("devtools")
 # install_github("ohdsi/Aphrodite")
 
-#library(Aphrodite)
-source("/home/jmbanda/OHDSI/Aphrodite/R/functions.R")
-
+library(Aphrodite)
 library(SqlRender)
 library(plyr)
 library(caret)
