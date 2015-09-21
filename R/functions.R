@@ -185,7 +185,7 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     #Get empty list
     patients_list_df<- list()
     casesANDcontrols_df<- list()
-      
+
     #TODO: is not currently able to actually exclude patients who have terms from excludeConceptList!!
     #Get all case patients in the cohort - from observations table
     #patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(includeConceptlist,collapse=","),",", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
@@ -385,7 +385,7 @@ manipulateSqlPull <- function(tmp_fv, flags, timeDiff) {
           }
           # normalize [timeDiff already defined if alternative normalization options]
           byDateSum$counts <- byDateSum$counts/timeDiff
-          
+
           test1 <- data.frame(t(byDateSum$counts))
           colnames(test1) <- byDateSum$concept_id
 
@@ -510,9 +510,11 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
         timeDiff <- getNormalizationTerm(dates, flags)
 
         if (flags$drugexposures[1]) {
-
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id as concept_id, A.drug_exposure_start_date as date, A.drug_type_concept_id, A.stop_reason, B.concept_name FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL  AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
-
+            if (removeDomains=='') { #No need to filter by domains if not present
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id as concept_id, A.drug_exposure_start_date as date, A.drug_type_concept_id, A.stop_reason, B.concept_name FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            } else {
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.drug_exposure_id, A.person_id, A.drug_concept_id as concept_id, A.drug_exposure_start_date as date, A.drug_type_concept_id, A.stop_reason, B.concept_name FROM @cdmSchema.drug_exposure as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.drug_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL  AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            }
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
             patientFeatures_drugexposures_df[[patientQueue]]<-test1   #Assign the already transformed FV
@@ -520,8 +522,11 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             rm('tmp_fv')
         }
         if (flags$observations[1]) {
-
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            if (removeDomains=='') { #No need to filter by domains if not present
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            } else {
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation as A, @cdmSchema.concept as B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            }
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
             patientFeatures_observations_df[[patientQueue]]<-test1
@@ -530,8 +535,11 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
 
         }
         if (flags$visits[1]) {
-
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            if (removeDomains=='') { #No need to filter by domains if not present
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            } else {
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence as A, ohdsiv5.condition_occurrence as B, @cdmSchema.concept as C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            }
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
             patientFeatures_visits_df[[patientQueue]]<-test1
@@ -547,7 +555,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             rm('test1')
             rm('tmp_fv')
         }
-      message(patientQueue)
+      #message(patientQueue)
     }
 patientData <- list(drugExposures = patientFeatures_drugexposures_df, observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df)
 return (patientData)
@@ -649,35 +657,34 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
   #We now flatten the vectors
   if (flags$observations[1]) {
       FV_ob <-convertFeatVecPortion(featuresOB, 'obs:',1)
-      message("Obs done")
+      message("STATUS: Observations done")
   } else {
       FV_ob <- NULL
   }
 
   if (flags$visits[1]) {
         FV_v <-convertFeatVecPortion(featuresVISIT, 'visit:',1)
-        message("Visits done")
+        message("STATUS: Visits done")
   } else {
       FV_v <- NULL
   }
 
   if (flags$drugexposures[1]) {
         FV_de <-convertFeatVecPortion(featuresDE, 'drugEx:',1)
-        message("Drugs done")
+        message("STATUS: Drugs done")
   } else {
       FV_de <- NULL
   }
 
   if (flags$labs[1]) {
       FV_lab <- convertFeatVecPortion(featuresLABS, 'lab:', 1)
-      message("Labs done")
+      message("STATUS: Measurements done")
   } else {
       FV_lab <- NULL
   }
 
   featureVectors <- list(observations = FV_ob, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
-
-  message("Vectors flattened")
+  message("STATUS: Feature vectors are ready")
 return (featureVectors)
 
 }
@@ -735,8 +742,8 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
   }
 
   pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
-  
-  message("Features merged")
+
+  message("STATUS: All features merged")
 
   # Get class labels based on pids
   cases_pids <- sapply(cases_pids[[1]], function(z) as.character(z))
@@ -763,13 +770,13 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
     ppv_set$Class_labels <- labels
     ppv_set$pid <- pp_total$pid
     pp_total <- ppv_set
-    message("Features converted to boolean, as set in options")
+    message("STATUS: Features converted to boolean, as set in options")
   }
   else if (tolower(c(flags$features_mode[1])) == 'frequency') {
-    message("Features kept as frequencies, as set in options")
+    message("STATUS: Features kept as frequencies, as set in options")
   }
   else {
-    message("Check options settings for how to define features.  Continuing with default (frequency counts)")
+    message("STATUS: Check options settings for how to define features.  Continuing with default (frequency counts)")
   }
 
 
@@ -921,30 +928,30 @@ conceptDecoder <- function (connection, schema, dbms, model, numFeats, breaker='
       modelRankDetails <- varImp(model, scale=F)  # if leave scale as true, give feature weightings scaled from 0-100 (we want to keep sign of weightings)
       featImps <- modelRankDetails$importance
       ids <-row.names(featImps)
-      
+
       # put data into df
       #TODO address different labeling for labs
       featImpDF <- data.frame(type=sapply(ids, function(x) unlist(strsplit(x, breaker))[typeInd]), ids=sapply(ids, function(x) unlist(strsplit(x, breaker))[idInd]), importance=featImps$Overall, absImportance=abs(featImps$Overall))
-      
+
       # sort by abs value
       featImpDF <- featImpDF[with(featImpDF, order(-absImportance)), ]
-      
+
       # return selection
       selection <- featImpDF[1:numFeats,]
       selection$rank <- c(1:numFeats)
       selection$ids <- as.character(selection$ids)
-      
+
       # deal with age/gender variables
       selection[selection$type=="age", colnames(selection)=="ids"] <- as.character(4265453)
       selection[selection$type=="gender", colnames(selection)=="ids"] <- as.character(2)
-      
+
       # make sql query
       concept_data <- sapply(selection$ids, function(x) executeSQL(connection, schema, paste("SELECT A.* FROM @cdmSchema.concept as A WHERE concept_id=",x,";", sep=""),dbms))
-      
+
       # add concepts to output
       selection$concepts <- as.character(concept_data[rownames(concept_data)=="concept_name",])
       selection$code_source <- as.character(concept_data[rownames(concept_data)=="vocabulary_id",])
-        
+
       return (selection)
 }
 
@@ -988,7 +995,7 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
             g <- g + ylim(0,1.1*max(weightingsDF$importance))
       }
       #g <- g + theme(text = element_text(size=20),
-                     #axis.text.x = element_text(angle=90, vjust=1)) 
+                     #axis.text.x = element_text(angle=90, vjust=1))
       g <- g + coord_flip()
       g
       ggsave(plotSaveFile, width = 10, height = .4*nrow(weightingsDF), dpi = 400)
@@ -1019,7 +1026,7 @@ plotFeatWeightings <- function (plotSaveFile, weightingsDF) {
 f_score_calc <- function (data, lev=levels(data$obs), model=NULL) {
 
       out <- c(twoClassSummary(data, lev = levels(data$obs), model = NULL))
-      
+
       # get TP, FP, FN, FN
       TN <- nrow(data[(data$obs==data$pred) & (data$obs=='F'),])
       TP <- nrow(data[(data$obs==data$pred) & (data$obs=='T'),])
