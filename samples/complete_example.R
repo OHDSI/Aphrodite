@@ -98,6 +98,9 @@ if (saveALLresults) {
 ##################################################################################
 ### Get cases data                                                             ###
 ##################################################################################
+# IF we want to restrict domain id's we use
+# dataFcases <- getPatientData(conn, dbms, cases, as.character(ignoreList_FF$V3), flag, cdmSchema, flag$remove_domains[1])
+# For the example this will be Unit that we are removing
 
 dataFcases <- getPatientData(conn, dbms, cases, as.character(ignoreList_FF$V3), flag, cdmSchema)
 if (saveALLresults) {

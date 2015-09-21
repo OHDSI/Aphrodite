@@ -95,6 +95,7 @@ flag$model[1] <-'LASSO'
 flag$features_mode[1] <- 'frequency'   #Can be Boolean or frequency - boolean only requires presence and frequency keeps the counts
 
 flag$remove_domains[1] <- ("'Unit'") # can choose whether to remove concept domains if finding irrelevant features
+#This needs to be passed explicitly to the getPatientData function if needed, see the example for more details
 # e.g. flag$remove_domains[1] <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")
 
 
