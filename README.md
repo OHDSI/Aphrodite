@@ -51,7 +51,6 @@ library(pROC)
 library(data.table)
 library(DatabaseConnector)
 library(ggplot2)
-library(gridExtra)
 
 # Initiate connection to DB
 
