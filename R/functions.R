@@ -61,7 +61,11 @@
 #'
 #' @export
 executeSQL <- function (connection, schema, query, targetDBMS) {
-
+    ### JMB: Added nasty hack to remove semi colon for Oracle instances ##
+    ### Will probably remove after more testing - with sending no semi-colons on PostGre ##
+    if (tolower(c(targetDBMS))=="oracle") {
+        query= substr(query,1,nchar(query)-1)
+    } #Not oracle? do nothing
     renderedSql <- renderSql(query, cdmSchema=schema)$sql
     translatedSql <- translateSql(renderedSql, sourceDialect = "sql server", targetDialect = targetDBMS)$sql
 
