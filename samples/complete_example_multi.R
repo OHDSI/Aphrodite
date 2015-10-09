@@ -66,16 +66,16 @@ for (model_loop in 1:models_to_build) {
     if (model_loop==1) {
         studyName <-'MI'   #String for saving objects prefix
         outcomeName <- 'MI' #String for model objects prefix
-        nCases = 20 # Number of patients to use as cases
-        nControls = 20 #Number of patients to use as controls
+        nCases = 100 # Number of patients to use as cases
+        nControls = 100 #Number of patients to use as controls
         aphrodite_concept_name <- "myocardial infarction"
         ## You can access any of the global variables and change them here - for this to happen on multiple loops ####
     }
     if (model_loop==2) {
         studyName <-'T2DM'   #String for saving objects prefix
         outcomeName <- 'T2DM' #String for model objects prefix
-        nCases = 20 # Number of patients to use as cases
-        nControls = 20 #Number of patients to use as controls
+        nCases = 100 # Number of patients to use as cases
+        nControls = 100 #Number of patients to use as controls
         aphrodite_concept_name <- "Type 2 diabetes mellitus"
         ## You can access any of the global variables and change them here - for this to happen on multiple loops ####
     }
