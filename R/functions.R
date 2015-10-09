@@ -202,8 +202,13 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     casesANDcontrols_df[[1]] <- do.call(rbind, patients_list_df)
 
     #Get Controls
-    #ONLY GET A REDUCED SET ( NOT IN the full cohort of possible patients)
-    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp LIMIT ",controlSize,";" ,sep=''),dbms)
+    #This gets the reduced set with no need for a limit statement
+    #if (tolower(c(dbms))=="oracle") {
+    #    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
+    #} else {
+    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND qualifier_concept_id=0)  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), "))) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
+    #}
+
 
     return(casesANDcontrols_df)
 }
