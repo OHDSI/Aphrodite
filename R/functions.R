@@ -1048,4 +1048,150 @@ f_score_calc <- function (data, lev=levels(data$obs), model=NULL) {
 }
 
 
+#' This function allows Anchor recommendation
+#'
+#' @description This function allows Anchor recommendation based after your initial set
+#' of keyword and ignore lists have been provided. This will help improve model by
+#' suggesting related features that were not considered initially.
+#'
+#' @param connection    The connection to the database server.
+#' @param dbms          The target DBMS for SQL to be rendered in.
+#' @param schema        The database schema being used.
+#' @param casesList     The list of case patients (already filtered by keywords or gold standard).
+#' @param controlsList  The list of control patients.
+#' @param ignores       The list of concept_id's ignored when building the cohort.
+#' @param studyName     The study name(will be used for file naming).
+#' @param outcomeName   The outcomeName (will be use for modeling).
+#' @param flag          The flags variable containg the study configuration - we
+#' use this one here to have flexibility of having two different sets of settings
+#' for the same experimental run.
+#' @param numAnchors    The total number of anchors to be returned (top N features).
+#'
+#'
+#' @details This function takes the lists of exclude keywords and fetches all patient data
+#' for the patients on the cases and controls list. It then builds a model to identify the
+#' top performing features and returns a list of them as anchors. This new keyword list can
+#' be feed to the set of Anchors specific functions to use any anchor as a selection criteria
+#' for patients
+#'
+#' @return A list of anchors containing rank, conceptID, domaiID
+#'
+#' @examples \dontrun{
+#'
+#' numAnchors<-50
+#' anchor_list <- getAnchors(conn, dbms, cdmSchema, cases, controls, as.character(ignoreList_FF$V3), studyName, outcomeName, flag, numAnchors)
+#'
+#' }
+#'
+#' @export
 
+getAnchors <- function (connection, dbms, schema, casesList, controlsList, ignores, studyName, outcomeName, flag, numAnchors) {
+    ##################################################################################
+    ### Get cases data                                                             ###
+    ##################################################################################
+    dataFcases <- getPatientData(connection, dbms, casesList, as.character(ignores), flag, schema)
+    ##################################################################################
+    ### Get control data                                                           ###
+    ##################################################################################
+    dataFcontrols <- getPatientData(connection, dbms, controlsList, as.character(ignores), flag, schema)
+    ##################################################################################
+    ### Create feature vector                                                      ###
+    ##################################################################################
+    fv_all<-buildFeatureVector(flag, dataFcases,dataFcontrols)
+    fv_full_data <- combineFeatureVectors(flag, data.frame(cases), controls, fv_all, outcomeName)
+    charCols <- c("Class_labels", "pid")
+    predictorsNames <- colnames(fv_full_data)[!colnames(fv_full_data) %in% charCols]
+    ##################################################################################
+    ### Create model                                                               ###
+    ##################################################################################
+    model_predictors <- buildModel(flag, fv_full_data, outcomeName, folder)
+    model<-model_predictors$model
+    ##################################################################################
+    ### Decode Features to produce Anchors list                                    ###
+    ##################################################################################
+    anchors<-conceptDecoder(conn, cdmSchema, dbms, model, numAnchors)
+
+    return(anchors)
+}
+
+#'This function builds a patient cohort (and controls) based on Anchors and lists
+#'
+#'@description This function will build a patient cohort with its respective
+#'controls using an inclusion concept_id list as well as an exclussion
+#'concept_id list. The user specifies the number of both cases and controls for
+#'his cohort.
+#'
+#'@param connection    The connection to the database server.
+#'@param dbms          The target DBMS for SQL to be rendered in.
+#'@param includeConceptlist    The list of concept_id's used to build the
+#'  cohort.
+#'@param excludeConceptlist    The list of concept_id's used as exclusion
+#'  criteria for the cohort.
+#'@param schema        The database schema being used.
+#'@param cohortSize    The number of desired patients to appear in the cohort.
+#'@param controlSize   The number of desired patients to be in the control
+#'  group.
+#'@param flags          The flags variable containg the study configuration - we
+#'use this one here to have flexibility of having two different sets of settings
+#'for the same experimental run.
+#'@details This function takes the lists of include and exclude concept_ids and
+#'finds all patients that satisfy this characteristics from the Observation and
+#'Condition_occurrence tables in CDM V5.
+#'
+#'@return A list of dataframes containing both cases and control patient_id's.
+#'
+#' @examples \dontrun{
+#'
+#'casesANDcontrolspatient_ids_df<- getPatientCohort_w_Anchors(conn, dbms,
+#'          as.character(keywordList_FF$V3), as.character(ignoreList_FF$V3),
+#'          cdmSchema,nCases,nControls, flag)
+#'if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
+#'      message("Not enough patients to get the number of cases specified")
+#'      stop
+#'} else {
+#'    if (nCases > nrow(casesANDcontrolspatient_ids_df[[2]])) {
+#'        message("Not enough patients to get the number of controls specified")
+#'        stop
+#'    }
+#'}
+#'
+#' }
+#'
+#'@export
+getPatientCohort_w_Anchors <- function (connection, dbms, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize, flags) {
+
+    #Get empty list
+    patients_list_df<- list()
+    casesANDcontrols_df<- list()
+
+    #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
+    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
+    #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
+    patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+    nf<-2
+
+    if (flags$drugexposures[1]) {
+        patients_list_df[[nf]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.drug_exposure WHERE drug_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND drug_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+        nf = nf+1
+    }
+    if (flags$visits[1]) {
+        patients_list_df[[nf]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.visit_occurrence WHERE visit_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND visit_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+        nf = nf+1
+    }
+    if (flags$labs[1]) {
+        patients_list_df[[nf]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.measurement WHERE measurement_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND measurement_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+        nf = nf+1
+    }
+
+
+    #Merge and get unique number of patients - Cases
+    casesANDcontrols_df[[1]] <- do.call(rbind, patients_list_df)
+
+    #Get Controls
+    #TODO: This needs work to filter controls from all other tables - currently uses observations and condition_ocurrence tables only
+    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND qualifier_concept_id=0)  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), "))) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
+    #}
+
+
+    return(casesANDcontrols_df)
+}

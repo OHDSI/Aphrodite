@@ -57,8 +57,8 @@ conn <- connect(connectionDetails)
 
 wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 
-write.table(wordLists$keywordlist_ALL, file=paste(studyName,'keywordlistAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-write.table(wordLists$ignorelist_ALL, file=paste(studyName,'ignorelistAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$keywordlist_ALL, file=paste(studyName,'_keywordlist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+write.table(wordLists$ignorelist_ALL, file=paste(studyName,'_ignorelist.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
 
 message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",aphrodite_concept_name,sep = ""))
 
@@ -67,8 +67,8 @@ message(paste("Keywords.tsv and ignore.tsv have been successfully created for ",
 ##################################################################################
 
 # Load Keyword list after editing
-keywordList_FF <- read.table(paste(studyName,'keywordlistAF.tsv',sep=''), sep="\t", header=FALSE)
-ignoreList_FF <- read.table(paste(studyName,'ignorelistAF.tsv',sep=''), sep="\t", header=FALSE)
+keywordList_FF <- read.table(paste(studyName,'_keywordlist.tsv',sep=''), sep="\t", header=FALSE)
+ignoreList_FF <- read.table(paste(studyName,'_ignorelist.tsv',sep=''), sep="\t", header=FALSE)
 
 ##################################################################################
 ### STEP 2 - Look for cases and controls in the patient data                   ###
@@ -89,9 +89,62 @@ cases<- casesANDcontrolspatient_ids_df[[1]][sample(nrow(casesANDcontrolspatient_
 controls<- casesANDcontrolspatient_ids_df[[2]][sample(nrow(casesANDcontrolspatient_ids_df[[2]]), nControls), ]
 
 if (saveALLresults) {
-    write.table(cases, file=paste(studyName,'casesAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
-    write.table(controls, file=paste(studyName,'controlsAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+    write.table(cases, file=paste(studyName,'_cases.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+    write.table(controls, file=paste(studyName,'_controls.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
 }
+
+####################################################################################
+#### We now have our cases and controls - let's find some Anchors               ####
+####################################################################################
+
+#source('/home/jmbanda/OHDSI/Aphrodite/R/functions.R')
+##Note that the number of cases and controls to be fetched will be dictated by the number of elements in cases and controls variables
+numAnchors<-50
+anchor_list <- getAnchors(conn, dbms, cdmSchema, cases, controls, as.character(ignoreList_FF$V3), studyName, outcomeName, flag, numAnchors)
+##### Present human readable list ###
+write.table(anchor_list, file=paste(studyName,'_anchors.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = TRUE)
+##### List that can be added to keywords for second step of selecting patients - ordered by ranking ###
+drops <- c("row.names","type","importance","absImportance","rank","code_source")
+anchor_list <- anchor_list[,!(names(anchor_list) %in% drops)]
+write.table(anchor_list, file=paste(studyName,'_aphrodite_anchors.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+##################################################################################
+### NOTICE: Do not forget to edit the keywords and ignore files with the new   ###
+### anchors to be used/removed - found in studyName_aphrodite_anchors.tsv      ###
+##################################################################################
+#### Some cleanup to avoid any mixups
+remove(cases)
+remove(controls)
+#### Some cleanup to avoid any mixups
+###################################################################################
+### Now that we have added the new anchors to the word list we go and fetch new ###
+### cases and controls and continue the regular Aphrodite process               ###
+###################################################################################
+
+#Re-load the lists
+keywordList_FF <- read.table(paste(studyName,'_keywordlist.tsv',sep=''), sep="\t", header=FALSE)
+ignoreList_FF <- read.table(paste(studyName,'_ignorelist.tsv',sep=''), sep="\t", header=FALSE)
+
+#Go and build the cohort with the special Anchors functions
+
+Anchored_casesANDcontrolspatient_ids_df<- getPatientCohort_w_Anchors(conn, dbms,as.character(keywordList_FF$V3),as.character(ignoreList_FF$V3), cdmSchema,nCases,nControls, flag)
+if (nCases > nrow(Anchored_casesANDcontrolspatient_ids_df[[1]])) {
+    message("Not enough patients to get the number of cases specified")
+    stop
+} else {
+    if (nCases > nrow(Anchored_casesANDcontrolspatient_ids_df[[2]])) {
+        message("Not enough patients to get the number of controls specified")
+        stop
+    }
+}
+
+cases<- Anchored_casesANDcontrolspatient_ids_df[[1]][sample(nrow(Anchored_casesANDcontrolspatient_ids_df[[1]]), nCases), ]
+controls<- Anchored_casesANDcontrolspatient_ids_df[[2]][sample(nrow(Anchored_casesANDcontrolspatient_ids_df[[2]]), nControls), ]
+
+if (saveALLresults) {
+    write.table(cases, file=paste(studyName,'-Anchored_casesAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+    write.table(controls, file=paste(studyName,'-Anchored_controlsAF.tsv',sep=''), quote=FALSE, sep='\t', row.names = FALSE, col.names = FALSE)
+}
+
 
 ##################################################################################
 ### Get cases data                                                             ###
