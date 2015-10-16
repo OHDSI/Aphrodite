@@ -37,6 +37,11 @@ Before you start
 
 You need to update the /R/settings.R file with your CDM connection information and Phenotyping settings. Example runs for Myocardial Infarction
 
+Developed and Tested
+===================
+
+Aphrodite was developed using R version 3.1.2. Fully tested with CDMv5 and Vocabulary V5 on a Postgres DB server.
+
 Full Example
 ===================
 
@@ -164,6 +169,12 @@ dbDisconnect(conn)
 
 
 ```
+
+Anchors support
+===================
+
+Support for Anchors has been added and is exmplained in the follwing complete example: /samples/complete_example_anchors.R
+
 Getting Involved
 =============
 * Package manual: [Aphrodite manual](https://github.com/OHDSI/Aphrodite/raw/master/man/Aphrodite.pdf) 
