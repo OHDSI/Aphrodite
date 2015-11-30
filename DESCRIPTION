@@ -1,15 +1,18 @@
 Package: Aphrodite
 Type: Package
-Title: Automated PHenotype Routine for Observational Definition Identification Training and Evaluation (APHRODITE) - Phenotype building tool using Fuzzy labels
+Title: Automated PHenotype Routine for Observational Definition Identification
+    Training and Evaluation (APHRODITE) - Phenotype building tool using Fuzzy labels
 Version: 1.2
 Date: 2015-09-21
-Author:
-    Juan M. Banda [aut, cre],
+Author: Juan M. Banda [aut, cre],
     Kate Niehaus [aut],
     Marc A. Suchard [aut],
     Martijn J. Schuemie [aut]
 Maintainer: Juan M. Banda <jmbanda@stanford.edu>
-Description: Aphrodite uses noisy class labels to create silver standard training corpora to construct phenotype models in conjunction with expert knowledge codified in existing ontologies and a comprehensive representation of the patient clinical record to learn phenotype models.
+Description: Aphrodite uses noisy class labels to create silver standard
+    training corpora to construct phenotype models in conjunction with expert
+    knowledge codified in existing ontologies and a comprehensive representation of
+    the patient clinical record to learn phenotype models.
 License: Apache License 2.0 | file LICENSE
 Depends:
     R (>= 3.1.0),
@@ -26,3 +29,4 @@ Imports:
 Suggests:
     ggplot2
 VignetteBuilder: knitr
+RoxygenNote: 5.0.1

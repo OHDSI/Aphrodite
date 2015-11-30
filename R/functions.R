@@ -544,9 +544,9 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
         }
         if (flags$visits[1]) {
             if (removeDomains=='') { #No need to filter by domains if not present
-                tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as feat_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence A, ohdsiv5.condition_occurrence B, @cdmSchema.concept C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as feat_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence A, @cdmSchema.condition_occurrence B, @cdmSchema.concept C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             } else {
-                tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as feat_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence A, ohdsiv5.condition_occurrence B, @cdmSchema.concept C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.visit_occurrence_id, A.person_id, A.visit_start_date as feat_date, A.visit_end_date, B.condition_occurrence_id, B.condition_concept_id as concept_id, C.concept_name FROM @cdmSchema.visit_occurrence A, @cdmSchema.condition_occurrence B, @cdmSchema.concept C WHERE A.visit_occurrence_id = B.visit_occurrence_id AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.condition_concept_id=C.concept_id AND C.standard_concept='S' AND C.invalid_reason IS NULL  AND C.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND C.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             }
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
@@ -1109,7 +1109,7 @@ getAnchors <- function (connection, dbms, schema, casesList, controlsList, ignor
     ##################################################################################
     ### Decode Features to produce Anchors list                                    ###
     ##################################################################################
-    anchors<-conceptDecoder(conn, cdmSchema, dbms, model, numAnchors)
+    anchors<-conceptDecoder(conn, schema, dbms, model, numAnchors)
 
     return(anchors)
 }
