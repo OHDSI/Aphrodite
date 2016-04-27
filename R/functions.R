@@ -192,7 +192,7 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
 
     #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
     #patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(includeConceptlist,collapse=","),",", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
-    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
+    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");",sep=''),dbms)
 
     #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
     #patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","),",",paste(excludeConceptlist,collapse=","),");",sep=''),dbms)
@@ -1165,7 +1165,7 @@ getPatientCohort_w_Anchors <- function (connection, dbms, includeConceptlist, ex
     casesANDcontrols_df<- list()
 
     #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
-    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
+    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");",sep=''),dbms)
     #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
     patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
     nf<-2
