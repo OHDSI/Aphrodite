@@ -206,7 +206,7 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     #if (tolower(c(dbms))=="oracle") {
     #    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
     #} else {
-    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND qualifier_concept_id=0)  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), "))) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
+    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), "))  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), "))) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
     #}
 
 
@@ -259,7 +259,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         patients_list_df<- list()
 
         #NOW: just looks at keywords.
-        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
+        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
 
         #NOW:just looks at keywords.
         patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
@@ -295,7 +295,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         }
         if (flags$observations[1]) {
 
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as feat_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.observation_date>='", as.character(dateStart),  "' AND A.observation_date<='", as.character(dateEnd),  "' AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as feat_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.observation_date>='", as.character(dateStart),  "' AND A.observation_date<='", as.character(dateEnd),  "' AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
             patientFeatures_observations_df[[patientQueue]]<-test1
@@ -509,7 +509,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
         patients_list_df<- list()
 
         # get patient dates
-        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE qualifier_concept_id=0 AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
+        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
         patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
@@ -531,9 +531,9 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
         }
         if (flags$observations[1]) {
             if (removeDomains=='') { #No need to filter by domains if not present
-                tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as feat_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as feat_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             } else {
-                tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as feat_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.qualifier_concept_id = 0 AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.observation_id, A.person_id, A.observation_concept_id as concept_id, A.observation_date as feat_date, A.observation_type_concept_id, B.concept_name, B.domain_id FROM @cdmSchema.observation A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.observation_concept_id=B.concept_id AND B.standard_concept='S' AND B.invalid_reason IS NULL AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
             }
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
@@ -1189,7 +1189,7 @@ getPatientCohort_w_Anchors <- function (connection, dbms, includeConceptlist, ex
 
     #Get Controls
     #TODO: This needs work to filter controls from all other tables - currently uses observations and condition_ocurrence tables only
-    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND qualifier_concept_id=0)  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), "))) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
+    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") )  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), "))) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
     #}
 
 
