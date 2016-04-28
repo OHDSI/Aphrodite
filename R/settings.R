@@ -65,7 +65,7 @@ flag$labs[1]=0            #Use labs as features  (1 yes, 0 no)
 # Time window from which to grab features
 flag$timeWindowOpt[1] <- 1
 # 1=go time of first keyword appearance in notes --> last keyword appearance
-# 2=go 10 years before first keyword appearance --> first keyword appearance
+# 2=go 10 years before first keyword appearance --> first keyword appearance ---- EXPERimental user under care
 
 # Filter for feature inclusion - discard any features found in less than threshCutoff proportion of sample set
 flag$threshCutoff[1] <- 0.05
