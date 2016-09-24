@@ -1,10 +1,12 @@
-# Aphrodite
+# APHRODITE
 
-Automated PHenotype Routine for Observational Definition, Identification, Training and Evaluation (APHRODITE) - Previously known as XPRESS. 
+Automated PHenotype Routine for Observational Definition, Identification, Training and Evaluation (APHRODITE)
 
-Typically, patient groups corresponding to a phenotype are selected by rule-based definitions, whose development is time-consuming. Machine learning approaches, which are an alternative approach for electronic phenotyping, are hampered by the paucity of manually labeled gold standard corpora for training. We demonstrate the feasibility of using noisy class labels to create “silver standard” training corpora to construct phenotype models. Our approach uses such silver standard corpora, in conjunction with expert knowledge codified in existing ontologies and a comprehensive representation of the patient clinical record, to learn phenotype models.
+Typically, patient groups corresponding to a phenotype are selected by rule-based definitions, whose development is time-consuming. Machine learning approaches, which are an alternative approach for electronic phenotyping, are hampered by the need of manually labeled gold standard training sets.
 
-Reference (for now): http://www.dmmh.org/dmmi2014_submission_4.pdf?attredirects=0&d=1
+We demonstrate the feasibility of using imperfectly labeled training sets to construct phenotype models. Our approach uses heuristic labeling strategy ("noisy" labeling), in conjunction with expert knowledge from existing ontologies, and a comprehensive representation of the patient clinical record to learn phenotype models.
+
+Reference: http://www.ncbi.nlm.nih.gov/pubmed/27174893
 
 Requirementes
 ===================
