@@ -7,9 +7,10 @@ Typically, patient groups corresponding to a phenotype are selected by rule-base
 We demonstrate the feasibility of using imperfectly labeled training sets to construct phenotype models. Our approach uses heuristic labeling strategy ("noisy" labeling), in conjunction with expert knowledge from existing ontologies, and a comprehensive representation of the patient clinical record to learn phenotype models.
 
 Reference: http://www.ncbi.nlm.nih.gov/pubmed/27174893
+
 How to video: http://tinyurl.com/use-aphrodite
 
-Requirementes
+Requirements
 ===================
 - CDM v5
 - R Packages:
