@@ -55,10 +55,12 @@ nControls = 20 #Number of patients to use as controls
 aphrodite_concept_name <- "myocardial infarction"
 
 #### Flags ###
-flag <- data.frame(drugexposures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE, remove_domains=(""), timeWindowOpt=integer(1), threshCutoff = .02, timeNormalize=integer(1))
+flag <- data.frame(drugexposures= integer(1), conditions= integer(1), procedures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE, remove_domains=(""), timeWindowOpt=integer(1), threshCutoff = .02, timeNormalize=integer(1))
 flag$drugexposures[1]=1   #Use drug_exposures as features  (1 yes, 0 no)
+flag$conditions[1]=1      #Use conditions as features - NEVER user with visits enabled as it will create duplicate features  (1 yes, 0 no)
+flag$procedures[1]=1      #Use procedures as features  (1 yes, 0 no)
 flag$observations[1]=1    #Use observations as features  (1 yes, 0 no)
-flag$visits[1]=1          #Use visits () as features  (1 yes, 0 no)
+flag$visits[1]=0          #Use visits - NEVER use with conditions enabled (this combines Visits and Conditions - each condition has to have a corresponding visit) as features  (1 yes, 0 no)
 flag$labs[1]=0            #Use labs as features  (1 yes, 0 no)
 
 ### Options to define range of feature variables for cases
