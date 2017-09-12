@@ -8,6 +8,8 @@ We demonstrate the feasibility of using imperfectly labeled training sets to con
 
 Reference: http://www.ncbi.nlm.nih.gov/pubmed/27174893
 
+Want to cite APHRODITE? Please cite this paper: https://www.ncbi.nlm.nih.gov/pubmed/28815104
+
 How to video: http://tinyurl.com/use-aphrodite
 
 Requirements
