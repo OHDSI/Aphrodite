@@ -277,7 +277,7 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
 #' }
 #'
 #' @export
-getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignores, flags, schema, removeDomains='') {
+getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignores, flags, schema, removeDomains='', searchDomain) {
     patientFeatures_drugexposures_df<- list()
     patientFeatures_conditions_df<- list()
     patientFeatures_procedures_df<- list()
@@ -292,12 +292,36 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
         patients_list_df<- list()
 
         #NOW: just looks at keywords.
-        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
-        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
-        patients_list_df[[3]] <- executeSQL(connection, schema, paste("SELECT person_id, measurement_date AS observation_date FROM @cdmSchema.measurement WHERE measurement_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
-        patients_list_df[[4]] <- executeSQL(connection, schema, paste("SELECT person_id, drug_exposure_start_date AS observation_date FROM @cdmSchema.drug_exposure WHERE drug_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
-        patients_list_df[[5]] <- executeSQL(connection, schema, paste("SELECT A.person_id, A.note_date AS observation_date FROM @cdmSchema.note_nlp as B, @cdmSchema.note as A WHERE B.note_nlp_concept_id IN (",paste(keywords,collapse=","),") AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.term_modifiers='negated=false,subject=patient' AND A.note_id=B.note_id;",sep=''),dbms)        #Find the first date of the term mentions
-        patients_list_df[[6]] <- executeSQL(connection, schema, paste("SELECT person_id, procedure_date AS observation_date FROM @cdmSchema.procedure_occurrence WHERE procedure_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+        if (missing(searchDomain)) {
+            patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
+            patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+        } else {
+            intN=1
+            if (searchDomain$observation[1]) {
+                patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
+                intN=intN+1
+            }
+            if (searchDomain$condition[1]) {
+                patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+                intN=intN+1
+            }
+            if (searchDomain$measurement[1]) {
+                patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT person_id, measurement_date AS observation_date FROM @cdmSchema.measurement WHERE measurement_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+                intN=intN+1
+            }
+            if (searchDomain$drug_exposure[1]) {
+                patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT person_id, drug_exposure_start_date AS observation_date FROM @cdmSchema.drug_exposure WHERE drug_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+                intN=intN+1
+            }
+            if (searchDomain$noteNLP[1]) {
+                patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT A.person_id, A.note_date AS observation_date FROM @cdmSchema.note_nlp as B, @cdmSchema.note as A WHERE B.note_nlp_concept_id IN (",paste(keywords,collapse=","),") AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.term_modifiers='negated=false,subject=patient' AND A.note_id=B.note_id;",sep=''),dbms)        #Find the first date of the term mentions
+                intN=intN+1
+            }
+            if (searchDomain$procedure[1]) {
+                patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT person_id, procedure_date AS observation_date FROM @cdmSchema.procedure_occurrence WHERE procedure_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+                intN=intN+1
+            }
+        }
 
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
@@ -1632,7 +1656,7 @@ getPatientDataStartEnd <- function (connection, dbms, patient_ids, startDate, en
             rm('tmp_fv')
         }
         if (flags$labs[1])  {
-            tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date as feat_date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_date >= '", startDate[patientQueue], "' AND A.measurement_concept_id=B.concept_id AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.measurement_id, A.person_id, A.measurement_date as feat_date, A.measurement_type_concept_id, A.measurement_concept_id, A.value_as_number, A.value_as_concept_id, B.concept_name FROM @cdmSchema.measurement A, @cdmSchema.concept B WHERE A.person_id=",as.character(patient_ids[patientQueue])," AND A.measurement_date >= '", startDate[patientQueue], "' AND A.measurement_date < '", endDate[patientQueue], "' AND A.measurement_concept_id=B.concept_id AND A.measurement_concept_id!=0 AND A.measurement_concept_id!=4124462;", sep=''), dbms)
             tmp_fv$concept_id <- paste(tmp_fv$measurement_concept_id, tmp_fv$value_as_concept_id, sep=":")
             test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
             row.names(test1)<-as.character(patient_ids[patientQueue])
