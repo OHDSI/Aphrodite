@@ -3,3 +3,7 @@
 .RData
 inst/doc
 Aphrodite.Rcheck/
+.Rbuildignore
+.Rd2pdf440/
+.gitignore
+.travis.yml
