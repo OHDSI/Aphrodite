@@ -12,11 +12,12 @@ Want to cite APHRODITE? Please cite this paper: https://www.ncbi.nlm.nih.gov/pub
 
 How to video: http://tinyurl.com/use-aphrodite
 
-Requirements
+Minimum Requirements
 ===================
 - CDM v5
 - R Packages:
 	- caret
+	- shiny
 	- dplyr
 	- pROC
     - data.table

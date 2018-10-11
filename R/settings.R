@@ -1,6 +1,6 @@
 # @file settings
 #
-# Copyright 2015 Observational Health Data Sciences and Informatics
+# Copyright 2015-2018 Observational Health Data Sciences and Informatics
 #
 # This file is part of:
 #
@@ -24,6 +24,7 @@
 # limitations under the License.
 #
 # @author Stanford University Center for Biomedical Informatics - Shah Lab
+# @author Georgia State University - Panacea Lab
 # @author Juan M. Banda
 
 ######################################################################################
@@ -55,18 +56,33 @@ nControls = 20 #Number of patients to use as controls
 aphrodite_concept_name <- "myocardial infarction"
 
 #### Flags ###
-flag <- data.frame(drugexposures= integer(1), conditions= integer(1), procedures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE, remove_domains=(""), timeWindowOpt=integer(1), threshCutoff = .02, timeNormalize=integer(1))
+flag <- data.frame(drugexposures= integer(1), conditions= integer(1), procedures= integer(1), observations= integer(1),visits=integer(1), labs=integer(1), notesNLP=integer(1), model=character(1), features_mode = character(1), stringsAsFactors=FALSE, remove_domains=(""), timeWindowOpt=integer(1), threshCutoff = .02, timeNormalize=integer(1))
 flag$drugexposures[1]=1   #Use drug_exposures as features  (1 yes, 0 no)
 flag$conditions[1]=1      #Use conditions as features - NEVER user with visits enabled as it will create duplicate features  (1 yes, 0 no)
 flag$procedures[1]=1      #Use procedures as features  (1 yes, 0 no)
 flag$observations[1]=1    #Use observations as features  (1 yes, 0 no)
 flag$visits[1]=0          #Use visits - NEVER use with conditions enabled (this combines Visits and Conditions - each condition has to have a corresponding visit) as features  (1 yes, 0 no)
-flag$labs[1]=0            #Use labs as features  (1 yes, 0 no)
+flag$labs[1]=1            #Use labs as features  (1 yes, 0 no)
+flag$notesNLP[1]=1        #Use positive present term mentions (term_modifiers='negated=false,subject=patient') from NOTE_NLP table
+
+
+### Search Domains #########
+### This new setting indicates where to look for matches on the labeling heuristic
+### Proper use of this flags is vital for performance under the principle: no need to search domains we are not interested in
+
+searchDomain <- data.frame(drug_exposure= integer(1), condition= integer(1), procedure= integer(1), observation= integer(1),visits=integer(1), measurement=integer(1), noteNLP=integer(1))
+searchDomain$drug_exposure[1]=1   #Use drug_exposures as features  (1 yes, 0 no)
+searchDomain$condition[1]=1      #Use conditions as features - NEVER user with visits enabled as it will create duplicate features  (1 yes, 0 no)
+searchDomain$procedure[1]=1      #Use procedures as features  (1 yes, 0 no)
+searchDomain$observation[1]=1    #Use observations as features  (1 yes, 0 no)
+searchDomain$measurement[1]=1            #Use labs as features  (1 yes, 0 no)
+searchDomain$noteNLP[1]=1        #Use positive present term mentions (term_modifiers='negated=false,subject=patient') from NOTE_NLP table
+
 
 ### Options to define range of feature variables for cases
 # Time window from which to grab features
 flag$timeWindowOpt[1] <- 1
-# 1=go time of first keyword appearance in notes --> last keyword appearance
+# 1=go time of first keyword appearance --> last keyword appearance
 # 2=go 10 years before first keyword appearance --> first keyword appearance ---- EXPERimental user under care
 
 # Filter for feature inclusion - discard any features found in less than threshCutoff proportion of sample set
@@ -95,7 +111,6 @@ flag$model[1] <-'LASSO'
 
 ### How to use features ###
 flag$features_mode[1] <- 'frequency'   #Can be Boolean or frequency - boolean only requires presence and frequency keeps the counts
-
 flag$remove_domains[1] <- ("'Unit'") # can choose whether to remove concept domains if finding irrelevant features
 #This needs to be passed explicitly to the getPatientData function if needed, see the example for more details
 # e.g. flag$remove_domains[1] <- c("'Metadata'", "'Unit'", "'Meas Value'", "'Note Type'")

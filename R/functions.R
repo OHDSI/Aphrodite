@@ -1,6 +1,6 @@
 # @file functions
 #
-# Copyright 2015 Observational Health Data Sciences and Informatics
+# Copyright 2015-2018 Observational Health Data Sciences and Informatics
 #
 # This file is part of:
 #
@@ -24,6 +24,7 @@
 # limitations under the License.
 #
 # @author Stanford University Center for Biomedical Informatics - Shah Lab
+# @author Georgia State University - Panacea Lab
 # @author Juan M. Banda
 
 
@@ -76,12 +77,6 @@ executeSQL <- function (connection, schema, query, targetDBMS) {
 
     names(queryResults) <- tolower(names(queryResults))  #Hack added to make the field names lowercase - should/might be removed later
 
-    #Broken code from 5/11/2015
-    #if (targetDBMS=="postgresql") {
-    #    queryResults <- dbGetQueryPostgreSql(connection,translatedSql)
-    #} else {
-    #    queryResults <- dbGetQuery.ffdf(connection,translatedSql)
-    #}
     return(queryResults)
 }
 
@@ -112,7 +107,7 @@ executeSQL <- function (connection, schema, query, targetDBMS) {
 #'@export
 buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
 
-    concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE lower(concept_name) =lower('",aphroditeConceptName,"') AND standard_concept = 'S' AND domain_id = 'Condition';",sep = ""),dbms)
+    concept_of_interest <- executeSQL(connection, schema, paste("SELECT concept_id, concept_name FROM @cdmSchema.concept WHERE lower(concept_name) =lower('",aphroditeConceptName,"') AND standard_concept = 'S';",sep = ""),dbms)
 
     if (nrow(concept_of_interest) == 0) {
         #No concept under that name found, maybe a typo look in the synonyms table
@@ -187,19 +182,52 @@ buildKeywordList <- function (connection, aphroditeConceptName, schema, dbms) {
 #' }
 #'
 #'@export
-getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize) {
+getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConceptlist, schema, cohortSize, controlSize, searchDomain) {
 
     #Get empty list
     patients_list_df<- list()
     casesANDcontrols_df<- list()
 
-    #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
-    #patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (",paste(includeConceptlist,collapse=","),",", paste(excludeConceptlist,collapse=","), ") AND qualifier_concept_id=0;",sep=''),dbms)
-    patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");",sep=''),dbms)
+    if (missing(searchDomain)) { #Backwards compatibility
+        #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
+        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");",sep=''),dbms)
 
-    #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
-    #patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","),",",paste(excludeConceptlist,collapse=","),");",sep=''),dbms)
-    patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+        #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
+        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+
+    } else {
+        intN=1
+        if (searchDomain$observation[1]) {
+            #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
+            patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");",sep=''),dbms)
+            intN = intN+1
+        }
+        if (searchDomain$condition[1]) {
+            #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
+            patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+            intN = intN+1
+        }
+        if (searchDomain$measurement[1]) {
+            #Get all case patients in the cohort -  from measurement - remove patients with ignore keywords
+            patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.measurement WHERE measurement_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND measurement_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+            intN = intN+1
+        }
+        if (searchDomain$drug_exposure[1]) {
+            #Get all case patients in the cohort -  from drug_exposure - remove patients with ignore keywords
+            patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.drug_exposure WHERE drug_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND drug_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+            intN = intN+1
+        }
+        if (searchDomain$noteNLP[1]) {
+            #Get all case patients in the cohort -  from note_nlp - remove patients with ignore keywords
+            patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT distinct(A.person_id) FROM @cdmSchema.note_nlp as B, @cdmSchema.note as A WHERE B.note_nlp_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND B.note_nlp_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND B.term_modifiers='negated=false,subject=patient' AND A.note_id = B.note_id;", sep=''),dbms)
+            intN = intN+1
+        }
+        if (searchDomain$procedure[1]) {
+            #Get all case patients in the cohort -  from procedure_occurrence - remove patients with ignore keywords
+            patients_list_df[[intN]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.procedure_occurrence WHERE procedure_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND procedure_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") ;", sep=''),dbms)
+            intN = intN+1
+        }
+    }
 
     #Merge and get unique number of patients - Cases
     casesANDcontrols_df[[1]] <- do.call(rbind, patients_list_df)
@@ -209,9 +237,8 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     #if (tolower(c(dbms))=="oracle") {
     #    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
     #} else {
-    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), "))  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), "))) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
+    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), "))  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), ")) UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), ")) UNION (SELECT distinct(person_id) FROM @cdmSchema.measurement WHERE measurement_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND measurement_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ")) UNION (SELECT distinct(person_id) FROM @cdmSchema.drug_exposure WHERE drug_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND drug_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ")) UNION (SELECT distinct(A.person_id) FROM @cdmSchema.note_nlp as B, @cdmSchema.note as A WHERE B.note_nlp_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND B.note_nlp_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND B.term_modifiers='negated=false,subject=patient' AND A.note_id = B.note_id) UNION (SELECT distinct(person_id) FROM @cdmSchema.procedure_occurrence WHERE procedure_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND procedure_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), "))    ) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
     #}
-
 
     return(casesANDcontrols_df)
 }
@@ -257,6 +284,7 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
+    patientFeatures_notenlp_df<- list()
 
     #removeDomains <- flags$remove_domains[1]
 
@@ -265,9 +293,12 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
 
         #NOW: just looks at keywords.
         patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(keywords,collapse=","), ") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
-
-        #NOW:just looks at keywords.
         patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+        patients_list_df[[3]] <- executeSQL(connection, schema, paste("SELECT person_id, measurement_date AS observation_date FROM @cdmSchema.measurement WHERE measurement_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+        patients_list_df[[4]] <- executeSQL(connection, schema, paste("SELECT person_id, drug_exposure_start_date AS observation_date FROM @cdmSchema.drug_exposure WHERE drug_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+        patients_list_df[[5]] <- executeSQL(connection, schema, paste("SELECT A.person_id, A.note_date AS observation_date FROM @cdmSchema.note_nlp as B, @cdmSchema.note as A WHERE B.note_nlp_concept_id IN (",paste(keywords,collapse=","),") AND A.person_id=",as.character(patient_ids[patientQueue])," AND B.term_modifiers='negated=false,subject=patient' AND A.note_id=B.note_id;",sep=''),dbms)        #Find the first date of the term mentions
+        patients_list_df[[6]] <- executeSQL(connection, schema, paste("SELECT person_id, procedure_date AS observation_date FROM @cdmSchema.procedure_occurrence WHERE procedure_concept_id IN (",paste(keywords,collapse=","),") AND person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)        #Find the first date of the term mentions
+
         dates <- do.call(rbind, patients_list_df)
         remove('patients_list_df')
 
@@ -357,8 +388,17 @@ getPatientDataCases <- function (connection, dbms, patient_ids, keywords, ignore
           rm('test1')
           rm('tmp_fv')
         }
+        if (flags$notesNLP[1]) {
+            tmp_fv = executeSQL(connection, schema, paste("SELECT A.note_nlp_id, C.person_id, A.note_nlp_concept_id as concept_id, C.note_date as feat_date, B.concept_name, B.domain_id FROM @cdmSchema.note_nlp A, @cdmSchema.concept B, @cdmSchema.note C WHERE C.person_id=",as.character(patient_ids[patientQueue])," AND C.note_date <='", as.character(dateStart),  "' AND A.note_nlp_concept_id=B.concept_id AND AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=C.note_id AND B.standard_concept='S' AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
+            row.names(test1)<-as.character(patient_ids[patientQueue])
+            patientFeatures_notenlp_df[[patientQueue]]<-test1
+            rm('test1')
+            rm('tmp_fv')
+        }
+
     }
-    dataCases <- list(drugExposures = patientFeatures_drugexposures_df, conditions = patientFeatures_conditions_df, procedures=patientFeatures_procedures_df, observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df)
+    dataCases <- list(drugExposures = patientFeatures_drugexposures_df, conditions = patientFeatures_conditions_df, procedures=patientFeatures_procedures_df, observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df, note_nlp = patientFeatures_notenlp_df)
     return (dataCases)
 }
 
@@ -526,6 +566,7 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
+    patientFeatures_note_nlp_df<- list()
 
     # domains that we do not want to include as features
     #removeDomains <- flags$remove_domains[1]
@@ -594,7 +635,6 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             patientFeatures_observations_df[[patientQueue]]<-test1
             rm('test1')
             rm('tmp_fv')
-
         }
         if (flags$visits[1]) {
             if (removeDomains=='') { #No need to filter by domains if not present
@@ -617,9 +657,22 @@ getPatientData <- function (connection, dbms, patient_ids, keywords, flags, sche
             rm('test1')
             rm('tmp_fv')
         }
+        if (flags$notesNLP[1]) {
+            if (removeDomains=='') { #No need to filter by domains if not present
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.note_nlp_id, C.person_id, A.note_nlp_concept_id as concept_id, C.note_date as feat_date, B.concept_name, B.domain_id FROM @cdmSchema.note_nlp A, @cdmSchema.concept B, @cdmSchema.note C  WHERE C.person_id=",as.character(patient_ids[patientQueue])," AND A.note_nlp_concept_id=B.concept_id AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=C.note_id AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            } else {
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.note_nlp_id, C.person_id, A.note_nlp_concept_id as concept_id, C.note_date as feat_date, B.concept_name, B.domain_id FROM @cdmSchema.note_nlp A, @cdmSchema.concept B, @cdmSchema.note C WHERE C.person_id=",as.character(patient_ids[patientQueue])," AND A.note_nlp_concept_id=B.concept_id AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=C.note_id AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            }
+            test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
+            row.names(test1)<-as.character(patient_ids[patientQueue])
+            patientFeatures_note_nlp_df[[patientQueue]]<-test1
+            rm('test1')
+            rm('tmp_fv')
+        }
+
       #message(patientQueue)
     }
-patientData <- list(drugExposures = patientFeatures_drugexposures_df,  conditions = patientFeatures_conditions_df, procedures=patientFeatures_procedures_df, observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df)
+patientData <- list(drugExposures = patientFeatures_drugexposures_df,  conditions = patientFeatures_conditions_df, procedures=patientFeatures_procedures_df, observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df, noteNLP = patientFeatures_note_nlp_df)
 return (patientData)
 }
 
@@ -709,6 +762,7 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
       featuresOB<-casesS$observations
       featuresVISIT<-casesS$visits
       featuresLABS <- casesS$labs
+      featuresNOTENLP <-caseS$noteNLP
   }
   else {
     # If cases and controls
@@ -718,6 +772,7 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
       featuresOB<-append(casesS$observations,controlsS$observations)
       featuresVISIT<-append(casesS$visits,controlsS$visits)
       featuresLABS <- append(casesS$labs, controlsS$labs)
+      featuresNOTENLP <- append(casesS$noteNLP, controlsS$noteNLP)
   }
 
   #We now flatten the vectors
@@ -760,7 +815,14 @@ buildFeatureVector <- function (flags, casesS, controlsS) {
       FV_lab <- NULL
   }
 
-  featureVectors <- list(observations = FV_ob, conditions = FV_co, procedures = FV_pr, visits = FV_v, labs = FV_lab, drugexposures = FV_de)
+    if (flags$notesNLP[1]) {
+        FV_noteNLP <- convertFeatVecPortion(featuresNOTENLP, 'noteNLP:', 1)
+        message("STATUS: Notes NLP done")
+    } else {
+        FV_noteNLP <- NULL
+    }
+
+  featureVectors <- list(observations = FV_ob, conditions = FV_co, procedures = FV_pr, visits = FV_v, labs = FV_lab, drugexposures = FV_de, noteNLP = FV_noteNLP)
   message("STATUS: Feature vectors are ready")
 return (featureVectors)
 
@@ -828,6 +890,11 @@ combineFeatureVectors <- function (flags, cases_pids, controls_pids, featureVect
   if (flags$labs[1]) {
     feature_vectors[[featuresets]]<-featureVector$labs
     featuresets = featuresets+1
+  }
+
+  if (flags$notesNLP[1]) {
+      feature_vectors[[featuresets]]<-featureVector$notesNLP
+      featuresets = featuresets+1
   }
 
   pp_total = Reduce(function(...) merge(..., by="pid", all=T), feature_vectors)
@@ -952,7 +1019,7 @@ buildModel <- function (flags, pp_total, outcomeNameS, saveFolder) {
     # get predictions on held-out testing data
     # get prediction classes
     predictions <- predict.train(object=objModel, newdata=testDF[,predictorsNames], type='raw')
-    modelPerfSummary <- confusionMatrix(predictions, testLabels, positive='T')
+    modelPerfSummary <- confusionMatrix(predictions, factor(testLabels), positive='T')
     # get probabilities for each class
     probPreds <- predict(objModel, newdata=testDF[,predictorsNames], type='prob')
     auc <- roc(testLabels, probPreds[,1])
@@ -1244,7 +1311,7 @@ getPatientCohort_w_Anchors <- function (connection, dbms, includeConceptlist, ex
     #Get empty list
     patients_list_df<- list()
     casesANDcontrols_df<- list()
-
+    #### TODO: Add other doamins
     #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
     patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");",sep=''),dbms)
     #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
@@ -1277,6 +1344,11 @@ getPatientCohort_w_Anchors <- function (connection, dbms, includeConceptlist, ex
         nf = nf+1
     }
 
+    if (flags$noteNLP[1]) {
+        patients_list_df[[nf]] <- executeSQL(connection, schema, paste("SELECT distinct(B.person_id) FROM @cdmSchema.note_nlp as A, @cdmSchema.note as B WHERE A.note_nlp_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND A.note_nlp_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=B.note_id;", sep=''),dbms)
+        nf = nf+1
+    }
+
 
     #Merge and get unique number of patients - Cases
     casesANDcontrols_df[[1]] <- do.call(rbind, patients_list_df)
@@ -1290,9 +1362,6 @@ getPatientCohort_w_Anchors <- function (connection, dbms, includeConceptlist, ex
     return(casesANDcontrols_df)
 }
 
-##################### 2017 Additions #################################
-##################### 2017 Additions #################################
-##################### 2017 Additions #################################
 
 #' This function fetches all the patient data (generic) - from a given start date
 #'
@@ -1329,6 +1398,7 @@ getPatientDataFromStartDate <- function (connection, dbms, patient_ids, patIndex
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
+    patientFeatures_note_nlp_df<- list()
 
     # domains that we do not want to include as features
     #removeDomains <- flags$remove_domains[1]
@@ -1338,6 +1408,7 @@ getPatientDataFromStartDate <- function (connection, dbms, patient_ids, patIndex
         patients_list_df<- list()
 
         # get patient dates
+        #TODO: Add other domains
         patients_list_df[[1]] <- c(patient_ids[patientQueue],patIndexDate[patientQueue]) #executeSQL(connection, schema, paste("SELECT person_id, observation_date FROM @cdmSchema.observation WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
         patients_list_df[[2]] <- c(patient_ids[patientQueue],patIndexDate[patientQueue]) #executeSQL(connection, schema, paste("SELECT person_id, condition_start_date AS observation_date FROM @cdmSchema.condition_occurrence WHERE person_id=",as.character(patient_ids[patientQueue]),";",sep=''),dbms)
         dates <- do.call(rbind, patients_list_df)
@@ -1421,9 +1492,24 @@ getPatientDataFromStartDate <- function (connection, dbms, patient_ids, patIndex
             rm('test1')
             rm('tmp_fv')
         }
+
+        ## TODO: Add dates
+        if (flags$notesNLP[1]) {
+            if (removeDomains=='') { #No need to filter by domains if not present
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.note_nlp_id, C.person_id, A.note_nlp_concept_id as concept_id, C.note_date as feat_date, B.concept_name, B.domain_id FROM @cdmSchema.note_nlp A, @cdmSchema.concept B, @cdmSchema.note C  WHERE C.person_id=",as.character(patient_ids[patientQueue])," AND A.note_nlp_concept_id=B.concept_id AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=C.note_id AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            } else {
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.note_nlp_id, C.person_id, A.note_nlp_concept_id as concept_id, C.note_date as feat_date, B.concept_name, B.domain_id FROM @cdmSchema.note_nlp A, @cdmSchema.concept B, @cdmSchema.note C WHERE C.person_id=",as.character(patient_ids[patientQueue])," AND A.note_nlp_concept_id=B.concept_id AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=C.note_id AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            }
+            test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
+            row.names(test1)<-as.character(patient_ids[patientQueue])
+            patientFeatures_note_nlp_df[[patientQueue]]<-test1
+            rm('test1')
+            rm('tmp_fv')
+        }
+
         #message(patientQueue)
     }
-    patientData <- list(drugExposures = patientFeatures_drugexposures_df, conditions = patientFeatures_conditions_df, procedures = patientFeatures_procedures_df , observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df)
+    patientData <- list(drugExposures = patientFeatures_drugexposures_df, conditions = patientFeatures_conditions_df, procedures = patientFeatures_procedures_df , observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df, noteNLP = patientFeatures_note_nlp_df)
     return (patientData)
 }
 
@@ -1462,7 +1548,7 @@ getPatientDataStartEnd <- function (connection, dbms, patient_ids, startDate, en
     patientFeatures_observations_df<- list()
     patientFeatures_visits_df<- list()
     patientFeatures_labs_df<- list()
-
+    patientFeatures_note_nlp_df <- list()
     # domains that we do not want to include as features
     #removeDomains <- flags$remove_domains[1]
 
@@ -1554,9 +1640,22 @@ getPatientDataStartEnd <- function (connection, dbms, patient_ids, startDate, en
             rm('test1')
             rm('tmp_fv')
         }
+        #### TO DO: Add dates
+        if (flags$notesNLP[1]) {
+            if (removeDomains=='') { #No need to filter by domains if not present
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.note_nlp_id, C.person_id, A.note_nlp_concept_id as concept_id, C.note_date as feat_date, B.concept_name, B.domain_id FROM @cdmSchema.note_nlp A, @cdmSchema.concept B, @cdmSchema.note C  WHERE C.person_id=",as.character(patient_ids[patientQueue])," AND A.note_nlp_concept_id=B.concept_id AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=C.note_id AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            } else {
+                tmp_fv = executeSQL(connection, schema, paste("SELECT A.note_nlp_id, C.person_id, A.note_nlp_concept_id as concept_id, C.note_date as feat_date, B.concept_name, B.domain_id FROM @cdmSchema.note_nlp A, @cdmSchema.concept B, @cdmSchema.note C WHERE C.person_id=",as.character(patient_ids[patientQueue])," AND A.note_nlp_concept_id=B.concept_id AND A.term_modifiers='negated=false,subject=patient' AND A.note_id=C.note_id AND B.domain_id NOT IN (", paste(removeDomains,collapse=","), ") AND B.concept_id NOT IN (", paste(keywords,collapse=","), ");",sep=''), dbms)
+            }
+            test1 <- manipulateSqlPull(tmp_fv, flags, timeDiff)
+            row.names(test1)<-as.character(patient_ids[patientQueue])
+            patientFeatures_note_nlp_df[[patientQueue]]<-test1
+            rm('test1')
+            rm('tmp_fv')
+        }
         #message(patientQueue)
     }
-    patientData <- list(drugExposures = patientFeatures_drugexposures_df, conditions = patientFeatures_conditions_df, procedures = patientFeatures_procedures_df , observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df)
+    patientData <- list(drugExposures = patientFeatures_drugexposures_df, conditions = patientFeatures_conditions_df, procedures = patientFeatures_procedures_df , observations = patientFeatures_observations_df, visits = patientFeatures_visits_df, labs = patientFeatures_labs_df, noteNLP = patientFeatures_note_nlp_df)
     return (patientData)
 }
 
