@@ -1683,3 +1683,44 @@ getPatientDataStartEnd <- function (connection, dbms, patient_ids, startDate, en
     return (patientData)
 }
 
+
+#' This function runs the shiny app
+#'
+#' @description This function runs the shiny app
+#'
+#' @param example    The name of the embedded app found in the package.
+#'
+#' @details This function is in charge of running the Aphrodite GUI
+#'
+#' @return Nothing
+#'
+#' @examples \dontrun{
+#'
+#'  runGUI("Aphrodite")
+#'
+#' }
+#'
+#' @export
+runGUI <- function(example) {
+    # locate all the shiny app examples that exist
+    validExamples <- list.files(system.file("shiny-examples", package = "Aphrodite"))
+
+    validExamplesMsg <-
+        paste0(
+            "Valid examples are: '",
+            paste(validExamples, collapse = "', '"),
+            "'")
+
+    # if an invalid example is given, throw an error
+    if (missing(example) || !nzchar(example) ||
+        !example %in% validExamples) {
+        stop(
+            'Please run `runExample()` with a valid example app as an argument.\n',
+            validExamplesMsg,
+            call. = FALSE)
+    }
+
+    # find and launch the app
+    appDir <- system.file("shiny-examples", example, package = "Aphrodite")
+    shiny::runApp(appDir, display.mode = "normal")
+}
