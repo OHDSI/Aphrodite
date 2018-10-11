@@ -62,4 +62,3 @@ if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
 }
 
 }
-

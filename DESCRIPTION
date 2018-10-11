@@ -2,8 +2,8 @@ Package: Aphrodite
 Type: Package
 Title: Automated PHenotype Routine for Observational Definition Identification
     Training and Evaluation (APHRODITE) - Phenotype building tool using Fuzzy labels
-Version: 1.2
-Date: 2015-09-21
+Version: 2.0
+Date: 2018-10-1
 Author: Juan M. Banda [aut, cre],
     Kate Niehaus [aut],
     Marc A. Suchard [aut],
@@ -20,6 +20,7 @@ Depends:
 Imports:
     DatabaseConnector,
     SqlRender,
+    shiny,
     plyr,
     caret,
     pROC,
@@ -29,4 +30,4 @@ Imports:
 Suggests:
     ggplot2
 VignetteBuilder: knitr
-RoxygenNote: 5.0.1
+RoxygenNote: 6.1.0

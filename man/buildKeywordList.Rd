@@ -37,4 +37,3 @@ wordLists <- buildKeywordList(conn, aphrodite_concept_name, cdmSchema, dbms)
 }
 
 }
-

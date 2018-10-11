@@ -39,4 +39,3 @@ optionally flat two sources of patient data (cases and controls)
 }
 
 }
-

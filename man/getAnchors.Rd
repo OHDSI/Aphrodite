@@ -54,4 +54,3 @@ anchor_list <- getAnchors(conn, dbms, cdmSchema, cases, controls, as.character(i
 }
 
 }
-

@@ -30,4 +30,3 @@ This is just a helper function that reduces the repeats of code for the manipula
 }
 
 }
-

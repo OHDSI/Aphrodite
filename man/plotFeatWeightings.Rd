@@ -28,4 +28,3 @@ This function returned predicted classes for the input patient list.  Use case: 
 }
 
 }
-

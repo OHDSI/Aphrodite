@@ -5,8 +5,8 @@
 \title{This function fetches all the patient data (non-generic) designed to work
 when building a model}
 \usage{
-getPatientDataCases(connection, dbms, patient_ids, keywords, ignores, flags,
-  schema, removeDomains = "")
+getPatientDataCases(connection, dbms, patient_ids, keywords, ignores,
+  flags, schema, removeDomains = "", searchDomain)
 }
 \arguments{
 \item{connection}{The connection to the database server.}
@@ -49,4 +49,3 @@ extraction of the remaining patient information
 }
 
 }
-

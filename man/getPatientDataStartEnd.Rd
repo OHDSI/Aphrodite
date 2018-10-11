@@ -4,8 +4,8 @@
 \alias{getPatientDataStartEnd}
 \title{This function fetches all the patient data (generic) - from a given start date and with a given end date}
 \usage{
-getPatientDataStartEnd(connection, dbms, patient_ids, startDate, endDate, flags,
-  schema, removeDomains = c(""))
+getPatientDataStartEnd(connection, dbms, patient_ids, startDate, endDate,
+  flags, schema, removeDomains = c(""))
 }
 \arguments{
 \item{connection}{The connection to the database server.}
@@ -45,4 +45,3 @@ time range the function returns all patient information
 }
 
 }
-

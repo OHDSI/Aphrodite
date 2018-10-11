@@ -31,4 +31,3 @@ Depending upon the input settings, will return the normalizing term for the feat
 }
 
 }
-

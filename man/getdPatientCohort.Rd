@@ -5,7 +5,7 @@
 \title{This function builds a patient cohort (and controls) based on a concept list}
 \usage{
 getdPatientCohort(connection, dbms, includeConceptlist, excludeConceptlist,
-  schema, cohortSize, controlSize)
+  schema, cohortSize, controlSize, searchDomain)
 }
 \arguments{
 \item{connection}{The connection to the database server.}
@@ -58,4 +58,3 @@ if (nCases > nrow(casesANDcontrolspatient_ids_df[[1]])) {
 }
 
 }
-
