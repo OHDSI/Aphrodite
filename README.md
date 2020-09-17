@@ -1,10 +1,14 @@
 # APHRODITE
 
-Automated PHenotype Routine for Observational Definition, Identification, Training and Evaluation (APHRODITE)
-
-Typically, patient groups corresponding to a phenotype are selected by rule-based definitions, whose development is time-consuming. Machine learning approaches, which are an alternative approach for electronic phenotyping, are hampered by the need of manually labeled gold standard training sets.
-
-We demonstrate the feasibility of using imperfectly labeled training sets to construct phenotype models. Our approach uses heuristic labeling strategy ("noisy" labeling), in conjunction with expert knowledge from existing ontologies, and a comprehensive representation of the patient clinical record to learn phenotype models.
+<table border="1" style='border-collapse:collapse;color:#000'>
+<thead>
+  <tr style='border:1px solid white;'>
+    <td style='border:0px solid white;' width="30%"><img src="http://www.jmbanda.com/OHDSI_aphrodite_sticker.png" alt="Aphrodite Sticker"></td>
+    <td style='border:0px solid white;'> <b>Automated PHenotype Routine for Observational Definition, Identification, Training and Evaluation (APHRODITE)</b> <br/><br/> Typically, patient groups corresponding to a phenotype are selected by rule-based definitions, whose development is time-consuming. Machine learning approaches, which are an alternative approach for electronic phenotyping, are hampered by the need of manually labeled gold standard training sets.<br/>
+We demonstrate the feasibility of using imperfectly labeled training sets to construct phenotype models. Our approach uses heuristic labeling strategy ("noisy" labeling), in conjunction with expert knowledge from existing ontologies, and a comprehensive representation of the patient clinical record to learn phenotype models.</td>
+  </tr>
+</thead>
+</table>
 
 Reference: http://www.ncbi.nlm.nih.gov/pubmed/27174893
 
@@ -153,11 +157,6 @@ if (saveALLresults) {
 
 charCols <- c("Class_labels", "pid")
 predictorsNames <- colnames(fv_full_data)[!colnames(fv_full_data) %in% charCols]
-
-#### Remove for demo
-# check that all data is real
-max(fv_full_data[,predictorsNames])
-fullFeatDist <- as.numeric(unlist(fv_full_data[,predictorsNames]))
 
 ##################################################################################
 ### STEP 3 - Create model                                                      ###
