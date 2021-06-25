@@ -190,12 +190,24 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
 
     if (missing(searchDomain)) { #Backwards compatibility
         #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
-        patients_list_df[[1]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id IN (", paste(includeConceptlist,collapse=","), ") AND observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");",sep=''),dbms)
+        patients_list_df[[1]] <- executeSQL(connection, schema, paste("select include_table.person_id from (select person_id from @cdmSchema.observation 
+                                                                  where observation_concept_id IN (", paste(includeConceptlist,collapse=","), ")) as include_table 
+                                                                  left join 
+                                                                  (select person_id from @cdmSchema.observation 
+                                                                  where observation_concept_id IN (", paste(excludeConceptlist,collapse=","),")) as exclude_table 
+                                                                  on include_table.person_id = exclude_table.person_id 
+                                                                  where exclude_table.person_id is null",sep=''),dbms)
 
         #Get all case patients in the cohort -  from condition occurrence - remove patients with ignore keywords
-        patients_list_df[[2]] <- executeSQL(connection, schema, paste("SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ");", sep=''),dbms)
+        patients_list_df[[2]] <- executeSQL(connection, schema, paste("select include_table.person_id from (select person_id from @cdmSchema.condition_occurrence 
+                                                                  where condition_concept_id IN (", paste(includeConceptlist,collapse=","), ")) as include_table 
+                                                                  left join 
+                                                                  (select person_id from @cdmSchema.condition_occurrence 
+                                                                  where condition_concept_id IN (", paste(excludeConceptlist,collapse=","),")) as exclude_table 
+                                                                  on include_table.person_id = exclude_table.person_id 
+                                                                  where exclude_table.person_id is null", sep=''),dbms)
 
-    } else {
+    } else {#The following section within the else need to debug
         intN=1
         if (searchDomain$observation[1]) {
             #Get all case patients in the cohort - from observations table - remove patients with ignore keywords
@@ -237,7 +249,28 @@ getdPatientCohort <- function (connection, dbms, includeConceptlist, excludeConc
     #if (tolower(c(dbms))=="oracle") {
     #    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM @cdmSchema.person WHERE person_id NOT IN (",paste(as.character(casesANDcontrols_df[[1]]$person_id),collapse=","),")) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
     #} else {
-    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("SELECT person_id FROM (SELECT TM.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn FROM (SELECT A.person_id FROM @cdmSchema.person A LEFT JOIN ( (SELECT distinct(person_id) FROM @cdmSchema.observation WHERE observation_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND observation_concept_id IN (", paste(includeConceptlist,collapse=","), "))  UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), ")) UNION (SELECT distinct(person_id) FROM @cdmSchema.condition_occurrence WHERE condition_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND condition_concept_id IN (", paste(includeConceptlist,collapse=","), ")) UNION (SELECT distinct(person_id) FROM @cdmSchema.measurement WHERE measurement_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND measurement_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ")) UNION (SELECT distinct(person_id) FROM @cdmSchema.drug_exposure WHERE drug_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND drug_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ")) UNION (SELECT distinct(A.person_id) FROM @cdmSchema.note_nlp as B, @cdmSchema.note as A WHERE B.note_nlp_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND B.note_nlp_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), ") AND B.term_modifiers='negated=false,subject=patient' AND A.note_id = B.note_id) UNION (SELECT distinct(person_id) FROM @cdmSchema.procedure_occurrence WHERE procedure_concept_id IN (",paste(includeConceptlist,collapse=","), ") AND procedure_concept_id NOT IN (", paste(excludeConceptlist,collapse=","), "))    ) B ON A.person_id=B.person_id WHERE B.person_id IS NULL) TM) tmp WHERE rn <= ",controlSize,";" ,sep=''),dbms)
+    casesANDcontrols_df[[2]] <- executeSQL(connection, schema, paste("with combined_table as 
+                                                                     (select  person_id, observation_concept_id as concept_id from @cdmSchema.observation 
+                                                                       union all select person_id, condition_concept_id as concept_id from @cdmSchema.condition_occurrence 
+                                                                       union all select person_id, measurement_concept_id as concept_id from @cdmSchema.measurement 
+                                                                       union all select person_id, drug_concept_id as concept_id from @cdmSchema.drug_exposure 
+                                                                       union all select person_id, procedure_concept_id as concept_id from @cdmSchema.procedure_occurrence 
+                                                                       union all (select note.person_id,  note_nlp.note_nlp_concept_id  as concept_id from @cdmSchema.note_nlp as note_nlp inner join @cdmSchema.note as note on note_nlp.note_id = note.note_id where note_nlp.term_modifiers='negated=false,subject=patient')
+                                                                     )
+                                                                     select PERSON_ID from (
+                                                                       select 
+                                                                       controls_table.person_id, ROW_NUMBER() OVER (ORDER BY RAND()) AS rn
+                                                                       from (
+                                                                         select combined_table.person_id from combined_table
+                                                                         left join
+                                                                         (select include_table.person_id from 
+                                                                           (select person_id, concept_id from combined_table where combined_table.concept_id in (", paste(includeConceptlist,collapse=","), ")) as include_table
+                                                                           left join
+                                                                           (select person_id, concept_id from combined_table where combined_table.concept_id in (", paste(excludeConceptlist,collapse=","), ")) as exclude_table
+                                                                           on include_table.person_id = exclude_table.person_id where exclude_table.person_id is null ) as cases
+                                                                         on cases.person_id = combined_table.person_id where cases.person_id is null
+                                                                       ) as controls_table) tmp
+                                                                     where rn <= ",controlSize,";",sep=''),dbms)
     #}
 
     return(casesANDcontrols_df)
